@@ -2,8 +2,7 @@
  * Stream Estate — official TypeScript SDK for the API V2 (beta).
  *
  * Types in ./generated/schema.ts are generated from https://next.docs.stream.estate/openapi.json
- * (`npm run generate`). Where the live API differs from that document, this file follows the live
- * API and says so next to the method.
+ * (`npm run generate`).
  */
 import type { components, operations } from "./generated/schema.js";
 
@@ -32,23 +31,91 @@ export type PropertySearchRequest = Omit<
   Schemas["PropertySearch.PropertySearchRequestInput"],
   "paginationType" | "cursor" | "page" | "size"
 > & {
-  /** 1-based. */
+  /** "PAGE" (default) or "CURSOR". Set automatically to "CURSOR" when `cursor` is given. */
+  paginationType?: "PAGE" | "CURSOR";
+  /** 1-based page number, page mode only. */
   page?: number;
   /** 1 to 100. Every returned property costs a credit. */
   size?: number;
+  /** `cursor` of the previous page, cursor mode only. */
+  cursor?: string;
 };
 export type PropertySearchResult = Schemas["PropertySearchResult"];
 export type CriteriaNode = Schemas["CriteriaNode"];
+export type Sort = Schemas["Sort"];
 
 /** One page of property search results. */
 export interface PropertyPage {
   items: PropertySearchResult[];
-  page: number;
-  size: number;
-  /** True when the page came back full, so a next page may exist. */
+  /** Number of matching properties, as counted by the API. */
+  totalItems?: number;
   hasNextPage: boolean;
+  /** Send it back as `cursor` to get the next page. Null in page mode. */
+  cursor: string | null;
   /** Credits this request consumed, from the `x-credits-charged` response header. */
   creditsCharged?: number;
+}
+
+/**
+ * Sort used by `properties.iterate` when the request has none. The API sorts by update date by
+ * default, and a property updated during the iteration would move: a stable key avoids that.
+ */
+export const STABLE_SORT: Sort = { field: "CREATED_AT", direction: "DESC" };
+
+const JSON_API = "application/vnd.api+json";
+
+interface ResourceIdentifier {
+  type: string;
+  id: string;
+}
+
+interface JsonApiResource extends ResourceIdentifier {
+  attributes?: Record<string, unknown>;
+  relationships?: Record<string, { data?: ResourceIdentifier | ResourceIdentifier[] | null }>;
+}
+
+interface JsonApiSearchDocument {
+  data?: JsonApiResource[];
+  included?: JsonApiResource[];
+  meta?: { totalItems?: number; hasNextPage?: boolean; cursor?: string | null };
+}
+
+function identifiers(relationship: { data?: ResourceIdentifier | ResourceIdentifier[] | null } | undefined) {
+  const data = relationship?.data;
+  if (!data) return [];
+  return Array.isArray(data) ? data : [data];
+}
+
+/**
+ * Rebuilds the flat `PropertySearchResult` (the `Accept: application/json` shape) from one JSON:API
+ * resource and the `included` array. The property-scoped publisher fields (`mandate`, `reference`,
+ * `contact`) come from the `PropertyPublisher` resources and are merged into each publisher.
+ */
+function toFlatResult(resource: JsonApiResource, included: Map<string, JsonApiResource>): PropertySearchResult {
+  const find = (ref: ResourceIdentifier) => included.get(`${ref.type}:${ref.id}`);
+  const scoped = new Map<string, Record<string, unknown>>();
+  for (const ref of identifiers(resource.relationships?.propertyPublishers)) {
+    const link = find(ref);
+    const publisher = identifiers(link?.relationships?.publisher)[0];
+    if (publisher) scoped.set(publisher.id, link?.attributes ?? {});
+  }
+  const publishers = identifiers(resource.relationships?.publishers).map((ref) => ({
+    id: ref.id,
+    ...find(ref)?.attributes,
+    ...scoped.get(ref.id),
+  }));
+  const listings = identifiers(resource.relationships?.listings).map((ref) => {
+    const listing = find(ref);
+    const source = identifiers(listing?.relationships?.source)[0];
+    return {
+      id: ref.id,
+      ...listing?.attributes,
+      ...(source
+        ? { source: { iri: `/sources/${source.id}`, uuid: source.id, slug: find(source)?.attributes?.slug } }
+        : {}),
+    };
+  });
+  return { id: resource.id, property: resource.attributes, publishers, listings } as PropertySearchResult;
 }
 
 export interface StreamEstateOptions {
@@ -113,8 +180,8 @@ function toQueryString(params: Record<string, unknown> | undefined): string {
 }
 
 /**
- * The API ignores `uniqueCodes` (INSEE codes) silently when `countryCode` is missing, and returns
- * properties from anywhere in France. Refuse the request instead.
+ * `uniqueCodes` (INSEE codes) need `countryCode`. The API refuses the request with a 400 whose
+ * detail is empty; this error says what is missing, before any credit is spent.
  */
 function assertCountryCodeWithUniqueCodes(node: unknown): void {
   if (!node || typeof node !== "object") return;
@@ -132,7 +199,7 @@ function assertCountryCodeWithUniqueCodes(node: unknown): void {
   if (usesUniqueCodes && !locations.countryCode) {
     throw new StreamEstateError(
       0,
-      'criteria.property.locations.countryCode is required with uniqueCodes (e.g. "FR"); without it the API ignores the location filter',
+      'criteria.property.locations.countryCode is required with uniqueCodes (e.g. "FR")',
     );
   }
 }
@@ -158,11 +225,11 @@ export class StreamEstate {
   private async send<T>(
     method: "GET" | "POST" | "PUT" | "DELETE",
     path: string,
-    options: { query?: Record<string, unknown>; body?: unknown } = {},
+    options: { query?: Record<string, unknown>; body?: unknown; accept?: string } = {},
   ): Promise<RawResponse<T>> {
     const headers: Record<string, string> = {
       "X-API-KEY": this.apiKey,
-      Accept: "application/json",
+      Accept: options.accept ?? "application/json",
     };
     if (options.body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -205,46 +272,58 @@ export class StreamEstate {
     options: { maxItems: number },
   ): AsyncGenerator<PropertySearchResult> {
     let remaining = options.maxItems;
-    let page = request.page ?? 1;
-    // The page size cannot change between pages without shifting offsets, so it is fixed up front.
     const size = Math.max(1, Math.min(request.size ?? 100, 100, options.maxItems));
+    const { page: _page, ...rest } = request;
+    let cursor = request.cursor;
     while (remaining > 0) {
-      const result = await this.properties.search({ ...request, page, size });
+      const result = await this.properties.search({
+        ...rest,
+        sort: request.sort ?? STABLE_SORT,
+        size,
+        paginationType: "CURSOR",
+        cursor,
+      });
       for (const item of result.items.slice(0, remaining)) yield item;
       remaining -= result.items.length;
-      if (!result.hasNextPage) return;
-      page += 1;
+      if (!result.hasNextPage || !result.cursor) return;
+      cursor = result.cursor;
     }
   }
 
   readonly properties = {
     /**
-     * POST /properties, page-based, in flat JSON: the JSON:API format keeps `totalItems` and the
-     * cursor but omits the publishers' `mandate`, `reference` and `contact`. Flat JSON is a bare
-     * array, so `hasNextPage` is inferred from the page size.
+     * POST /properties. The request goes out in JSON:API, the only format with `totalItems`,
+     * `hasNextPage` and the cursor, and each result is rebuilt in the flat shape.
      */
     search: async (request: PropertySearchRequest = {}): Promise<PropertyPage> => {
       assertCountryCodeWithUniqueCodes(request.criteria);
-      const page = request.page ?? 1;
-      const size = request.size ?? 10;
-      const { data, headers } = await this.send<PropertySearchResult[]>("POST", "/properties", {
-        body: { ...request, paginationType: "PAGE", page, size },
+      const { paginationType, page, size, cursor, ...rest } = request;
+      const mode = paginationType ?? (cursor ? "CURSOR" : "PAGE");
+      const body = {
+        ...rest,
+        paginationType: mode,
+        size: size ?? 10,
+        ...(mode === "PAGE" ? { page: page ?? 1 } : { cursor: cursor ?? null }),
+      };
+      const { data, headers } = await this.send<JsonApiSearchDocument>("POST", "/properties", {
+        body,
+        accept: JSON_API,
       });
-      const items = Array.isArray(data) ? data : [];
+      const included = new Map((data?.included ?? []).map((item) => [`${item.type}:${item.id}`, item]));
       const credits = Number(headers.get("x-credits-charged"));
       return {
-        items,
-        page,
-        size,
-        hasNextPage: items.length === size,
+        items: (data?.data ?? []).map((resource) => toFlatResult(resource, included)),
+        totalItems: data?.meta?.totalItems,
+        hasNextPage: data?.meta?.hasNextPage ?? false,
+        cursor: data?.meta?.cursor ?? null,
         creditsCharged: Number.isFinite(credits) ? credits : undefined,
       };
     },
 
     /**
-     * Iterates over results page by page. Every returned property costs a credit, so `maxItems`
-     * is required. Pages keep a fixed size, so the last page can return (and charge) up to
-     * `size - 1` properties beyond `maxItems`; they are not yielded.
+     * Iterates over all results with cursor pagination. Every returned property costs a credit, so
+     * `maxItems` is required. Without `sort`, uses `STABLE_SORT`. The last page can return (and
+     * charge) up to `size - 1` properties beyond `maxItems`; they are not yielded.
      */
     iterate: (request: PropertySearchRequest, options: { maxItems: number }): AsyncGenerator<PropertySearchResult> =>
       this.iterateProperties(request, options),

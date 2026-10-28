@@ -50,14 +50,27 @@ Every filter is typed from the API reference, so your editor completes the crite
 
 ### More than one page
 
+Each page returns `totalItems`, `hasNextPage` and a `cursor`. Send the cursor back to get the next page:
+
+```ts
+const first = await client.properties.search({ size: 50, paginationType: "CURSOR", criteria });
+const second = await client.properties.search({ size: 50, cursor: first.cursor!, criteria });
+```
+
+Or let the SDK follow the cursors:
+
 ```ts
 for await (const result of client.properties.iterate({ criteria, size: 50 }, { maxItems: 500 })) {
   // …
 }
 ```
 
-Each returned property costs a credit, so `maxItems` is required. Pages have a fixed size: the last one
-can return up to `size - 1` properties beyond `maxItems`, which are charged but not yielded.
+Each returned property costs a credit, so `maxItems` is required. The last page can return up to
+`size - 1` properties beyond `maxItems`; they are charged but not yielded.
+
+Without a `sort`, `iterate` sorts by creation date (`STABLE_SORT`). The API sorts by update date by
+default, and a property updated during the iteration would move from one page to another. Page numbers
+(`page: 2`) have the same limit, so prefer the cursor to read many pages.
 
 ## API
 
@@ -80,15 +93,14 @@ client.analytics.listings(options)
 Errors are thrown as `StreamEstateError` with `status`, `title`, `detail`, `violations` and `requestId`
 (quote it when contacting support@stream.estate).
 
-## Where the SDK differs from the reference
+## How the SDK talks to the API
 
-- `properties.search` returns `{ items, page, size, hasNextPage, creditsCharged }`. The SDK requests flat
-  JSON, which the API returns as a plain array without `totalItems` or cursor (as the guides say, although
-  the OpenAPI document declares an object). It does so because the JSON:API format, which keeps
-  pagination, currently omits the publishers' `mandate`, `reference` and `contact`. `hasNextPage` therefore
-  means "the page came back full", and cursor pagination is not offered.
-- A location filter using `uniqueCodes` without `countryCode` is refused before sending: the API would
-  ignore the filter and return properties from all of France.
+- `properties.search` requests the JSON:API format, the only one with `totalItems`, `hasNextPage` and the
+  cursor, and rebuilds each result in the flat shape (`property`, `publishers`, `listings`). The
+  property-scoped publisher fields (`mandate`, `reference`, `contact`) are merged into each publisher.
+- Every other method requests flat JSON.
+- A location filter with `uniqueCodes` and no `countryCode` is refused before sending, with a message that
+  says what is missing.
 
 ## Use the API from an AI assistant
 
