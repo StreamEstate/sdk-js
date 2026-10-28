@@ -19,7 +19,7 @@ async function main() {
       },
     },
   });
-  console.log(`${page.items.length} properties, ${page.creditsCharged} credits, more: ${page.hasNextPage}`);
+  console.log(`${page.items.length} of ${page.totalItems} properties, ${page.creditsCharged} credits`);
   for (const { property, listings } of page.items) {
     console.log(`- ${property?.pricing?.displayed} € · ${property?.area?.displayed} m² · ${listings?.length} listing(s)`);
   }

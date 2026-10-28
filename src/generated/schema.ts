@@ -110,7 +110,7 @@ export interface paths {
         get: operations["getAlert"];
         /**
          * Update alert
-         * @description Update an existing alert. Only the fields present in the body change: omit a field to keep its stored value, or send a nullable field as null to clear it. Same criteria tree shape as POST.
+         * @description Update an existing alert. Only the fields present in the body change: omit a field to keep its stored value, or send a nullable field as null to clear it. Same criteria tree shape as POST. Any update that would leave the alert enabled with no destination of its own returns 422 when your account has no default destination, whether or not the update is what enabled it. Sending notificationDestination as null returns 422 whenever your account has no default destination, for a disabled alert too.
          */
         put: operations["updateAlert"];
         post?: never;
@@ -158,6 +158,26 @@ export interface paths {
         get: operations["getAlertEvent"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/alerts/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Estimate the volume of an alert
+         * @description Estimates the notifications an alert with these criteria would send per day and per hour once running, from the matching properties that arrived over the last 30 days. A newly saved alert also notifies, in its first days, the matching properties already on the market; this estimate leaves them out. A rough figure that counts new properties only. Not billed.
+         */
+        post: operations["forecastAlert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -357,7 +377,7 @@ export interface paths {
         };
         /**
          * Location autocomplete suggestions
-         * @description Returns location suggestions based on search query. Supports typo-tolerant search, postal code prefixes, and filtering by administrative type.
+         * @description Returns location suggestions based on search query. Supports typo-tolerant search, postal code prefixes, administrative subregion codes (French department numbers), usual abbreviations, and filtering by administrative type.
          */
         get: operations["autocompleteLocations"];
         put?: never;
@@ -397,11 +417,51 @@ export interface paths {
         };
         /**
          * Get property
-         * @description Retrieve a single property by its id.
+         * @description Retrieve a single property by its id. If the property was merged into another, its old id still works: the response is the property it was merged into, with the old id in mergedFrom.
          */
         get: operations["getProperty"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/properties/lookup-by-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look up a property by a listing URL
+         * @description Tells whether we hold the property published at a URL, and where to fetch it.
+         */
+        post: operations["lookupPropertyByUrl"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/properties/{id}/resolve-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve the address of a property
+         * @description Finds the exact postal address of a property from the data its listings carry: the energy certificate registry first, then the national address base around a precise location. Beta: the matching is being tuned and the confidence bands may move. A result is returned whatever the outcome; read the confidence before showing the address. EXACT and HIGH can be shown as the address, MEDIUM and LOW as a probable address, NONE means nothing was found. Covers properties located in France; other countries are refused.
+         */
+        post: operations["resolvePropertyAddress"];
         delete?: never;
         options?: never;
         head?: never;
@@ -577,21 +637,25 @@ export interface components {
             /**
              * @description Human-readable display name.
              * @example Paris
+             * @example Paris
              */
             name?: string;
             /**
              * @description National unique code (INSEE code in France).
+             * @example 75056
              * @example 75056
              */
             uniqueCode?: string | null;
             /**
              * @description Administrative type.
              * @example MUNICIPALITY
+             * @example MUNICIPALITY
              * @enum {string|null}
              */
             locationType?: "COUNTRY" | "ADMINISTRATIVE_REGION" | "ADMINISTRATIVE_SUBREGION" | "MUNICIPALITY_GROUP" | "MUNICIPALITY" | "MUNICIPAL_DISTRICT" | "NEIGHBORHOOD" | "SUB_MUNICIPALITY" | "SUB_NEIGHBOURHOOD" | null;
             /**
              * @description Country the division belongs to.
+             * @example FR
              * @example FR
              * @enum {string|null}
              */
@@ -603,27 +667,116 @@ export interface components {
              *       "75002",
              *       "75003"
              *     ]
+             * @example [
+             *       "75001",
+             *       "75002",
+             *       "75003"
+             *     ]
              */
             postalCodes?: string[] | null;
+            /**
+             * @description GeoJSON (RFC 7946) Point (centroid).
+             * @example {
+             *       "type": "Point",
+             *       "coordinates": [
+             *         2.3522,
+             *         48.8566
+             *       ]
+             *     }
+             * @example {
+             *       "type": "Point",
+             *       "coordinates": [
+             *         2.3522,
+             *         48.8566
+             *       ]
+             *     }
+             */
             centroid?: components["schemas"]["GeoJsonGeometry"] | null;
             /**
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
         };
         "AdministrativeDivision.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example AdministrativeDivision */
+            /**
+             * @example AdministrativeDivision
+             * @example AdministrativeDivision
+             */
             type: string;
-            attributes?: components["schemas"]["AdministrativeDivision"];
+            attributes?: {
+                /**
+                 * @description Human-readable display name.
+                 * @example Paris
+                 * @example Paris
+                 */
+                name?: string;
+                /**
+                 * @description National unique code (INSEE code in France).
+                 * @example 75056
+                 * @example 75056
+                 */
+                uniqueCode?: string | null;
+                /**
+                 * @description Administrative type.
+                 * @example MUNICIPALITY
+                 * @example MUNICIPALITY
+                 * @enum {string|null}
+                 */
+                locationType?: "COUNTRY" | "ADMINISTRATIVE_REGION" | "ADMINISTRATIVE_SUBREGION" | "MUNICIPALITY_GROUP" | "MUNICIPALITY" | "MUNICIPAL_DISTRICT" | "NEIGHBORHOOD" | "SUB_MUNICIPALITY" | "SUB_NEIGHBOURHOOD" | null;
+                /**
+                 * @description Country the division belongs to.
+                 * @example FR
+                 * @example FR
+                 * @enum {string|null}
+                 */
+                countryCode?: "FR" | "BE" | null;
+                /**
+                 * @description Postal codes attached to this division.
+                 * @example [
+                 *       "75001",
+                 *       "75002",
+                 *       "75003"
+                 *     ]
+                 * @example [
+                 *       "75001",
+                 *       "75002",
+                 *       "75003"
+                 *     ]
+                 */
+                postalCodes?: string[] | null;
+                /**
+                 * @description GeoJSON (RFC 7946) Point (centroid).
+                 * @example {
+                 *       "type": "Point",
+                 *       "coordinates": [
+                 *         2.3522,
+                 *         48.8566
+                 *       ]
+                 *     }
+                 * @example {
+                 *       "type": "Point",
+                 *       "coordinates": [
+                 *         2.3522,
+                 *         48.8566
+                 *       ]
+                 *     }
+                 */
+                centroid?: components["schemas"]["GeoJsonGeometry"] | null;
+            };
         };
         AdministrativeDivisionReference: {
             /**
              * @description Canonical IRI of the AdministrativeDivision resource.
              * @default
+             * @example /geo/administrative-divisions/019dedb1-fdf4-714c-8392-5b9cfd63cde3
              * @example /geo/administrative-divisions/019dedb1-fdf4-714c-8392-5b9cfd63cde3
              */
             iri: string;
@@ -631,15 +784,18 @@ export interface components {
              * @description Public Id of the AdministrativeDivision.
              * @default
              * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
+             * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
              */
             id: string;
             /**
              * @description Display name.
              * @example Paris
+             * @example Paris
              */
             name?: string | null;
             /**
              * @description Generic administrative type.
+             * @example MUNICIPALITY
              * @example MUNICIPALITY
              * @enum {string|null}
              */
@@ -647,10 +803,14 @@ export interface components {
             /**
              * @description Country-specific unique code (e.g. INSEE for FR, postal-derived elsewhere). Set on the city slot only.
              * @example 75056
+             * @example 75056
              */
             uniqueCode?: string | null;
             /**
              * @description Postal codes attached to this division. Set on the city slot only.
+             * @example [
+             *       "75018"
+             *     ]
              * @example [
              *       "75018"
              *     ]
@@ -664,34 +824,160 @@ export interface components {
          *     so no boundary is ever hydrated into PHP geometry objects.
          */
         AdministrativeDivisionGeometry: {
+            /**
+             * @description GeoJSON (RFC 7946) Polygon or MultiPolygon of the administrative boundary.
+             * @example {
+             *       "type": "Polygon",
+             *       "coordinates": [
+             *         [
+             *           [
+             *             2.224,
+             *             48.815
+             *           ],
+             *           [
+             *             2.47,
+             *             48.815
+             *           ],
+             *           [
+             *             2.47,
+             *             48.902
+             *           ],
+             *           [
+             *             2.224,
+             *             48.902
+             *           ],
+             *           [
+             *             2.224,
+             *             48.815
+             *           ]
+             *         ]
+             *       ]
+             *     }
+             * @example {
+             *       "type": "Polygon",
+             *       "coordinates": [
+             *         [
+             *           [
+             *             2.224,
+             *             48.815
+             *           ],
+             *           [
+             *             2.47,
+             *             48.815
+             *           ],
+             *           [
+             *             2.47,
+             *             48.902
+             *           ],
+             *           [
+             *             2.224,
+             *             48.902
+             *           ],
+             *           [
+             *             2.224,
+             *             48.815
+             *           ]
+             *         ]
+             *       ]
+             *     }
+             */
             geometry?: components["schemas"]["GeoJsonGeometry"] | null;
             /**
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
         };
         "AdministrativeDivisionGeometry.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example AdministrativeDivisionGeometry */
+            /**
+             * @example AdministrativeDivisionGeometry
+             * @example AdministrativeDivisionGeometry
+             */
             type: string;
-            attributes?: components["schemas"]["AdministrativeDivisionGeometry"];
+            attributes?: {
+                /**
+                 * @description GeoJSON (RFC 7946) Polygon or MultiPolygon of the administrative boundary.
+                 * @example {
+                 *       "type": "Polygon",
+                 *       "coordinates": [
+                 *         [
+                 *           [
+                 *             2.224,
+                 *             48.815
+                 *           ],
+                 *           [
+                 *             2.47,
+                 *             48.815
+                 *           ],
+                 *           [
+                 *             2.47,
+                 *             48.902
+                 *           ],
+                 *           [
+                 *             2.224,
+                 *             48.902
+                 *           ],
+                 *           [
+                 *             2.224,
+                 *             48.815
+                 *           ]
+                 *         ]
+                 *       ]
+                 *     }
+                 * @example {
+                 *       "type": "Polygon",
+                 *       "coordinates": [
+                 *         [
+                 *           [
+                 *             2.224,
+                 *             48.815
+                 *           ],
+                 *           [
+                 *             2.47,
+                 *             48.815
+                 *           ],
+                 *           [
+                 *             2.47,
+                 *             48.902
+                 *           ],
+                 *           [
+                 *             2.224,
+                 *             48.902
+                 *           ],
+                 *           [
+                 *             2.224,
+                 *             48.815
+                 *           ]
+                 *         ]
+                 *       ]
+                 *     }
+                 */
+                geometry?: components["schemas"]["GeoJsonGeometry"] | null;
+            };
         };
         AgencyFee: {
             /**
              * @description Fee amount.
+             * @example 24000
              * @example 24000
              */
             amount?: number | null;
             /**
              * @description Fee percentage of the sale price.
              * @example 7.5
+             * @example 7.5
              */
             percentage?: number | null;
             /**
              * @description Currency of the fee.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -699,11 +985,13 @@ export interface components {
             /**
              * @description Who pays the fee.
              * @example SELLER
+             * @example SELLER
              * @enum {string|null}
              */
             paidBy?: "BUYER" | "SELLER" | "OWNER" | "TENANT" | null;
             /**
              * @description Whether the fee is already included in the displayed sale price.
+             * @example true
              * @example true
              */
             includedInPrice?: boolean | null;
@@ -711,6 +999,7 @@ export interface components {
         Alert: {
             /**
              * @description Alert name
+             * @example 2-bedroom apartments in Paris
              * @example 2-bedroom apartments in Paris
              */
             name?: string | null;
@@ -720,7 +1009,63 @@ export interface components {
              */
             enabled: boolean;
             /**
-             * @description Search criteria tree (nested and/or groups with sets of property filters). Same shape as the POST /properties criteria.
+             * @description Search criteria tree (nested and/or groups with sets of property filters). Same shape as the POST /properties criteria. Absent when the alert has no criteria, which means it matches every property except new-build and under-construction ones.
+             * @example {
+             *       "and": [
+             *         {
+             *           "property": {
+             *             "type": {
+             *               "in": [
+             *                 "FLAT",
+             *                 "HOUSE"
+             *               ]
+             *             },
+             *             "transaction": {
+             *               "type": "SELL"
+             *             },
+             *             "pricing": {
+             *               "displayed": {
+             *                 "gte": 200000,
+             *                 "lte": 450000
+             *               }
+             *             },
+             *             "unit": {
+             *               "bedrooms": {
+             *                 "gte": 2
+             *               }
+             *             }
+             *           }
+             *         },
+             *         {
+             *           "or": [
+             *             {
+             *               "property": {
+             *                 "locations": {
+             *                   "countryCode": "FR",
+             *                   "in": {
+             *                     "uniqueCodes": [
+             *                       "75056"
+             *                     ]
+             *                   }
+             *                 }
+             *               }
+             *             },
+             *             {
+             *               "property": {
+             *                 "locations": {
+             *                   "countryCode": "FR",
+             *                   "in": {
+             *                     "uniqueCodes": [
+             *                       "69123"
+             *                     ]
+             *                   }
+             *                 }
+             *               }
+             *             }
+             *           ]
+             *         }
+             *       ]
+             *     }
              * @example {
              *       "and": [
              *         {
@@ -781,20 +1126,24 @@ export interface components {
             criteria?: {
                 [key: string]: unknown;
             };
+            /** @description Notification configuration. Omit it and the alert never notifies: it is what selects the event types you receive. */
             notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
             /**
              * Format: iri-reference
              * @description Event destination notifications are delivered to. Set it on create or update through notificationDestination.
+             * @example https://example.com/
              * @example https://example.com/
              */
             readonly eventDestination?: string | null;
             /**
              * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
              * @example whsec_abc123...
+             * @example whsec_abc123...
              */
             readonly signingKey?: string | null;
             /**
              * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+             * @example b75b1473
              * @example b75b1473
              */
             readonly signingKeyHint?: string | null;
@@ -802,11 +1151,13 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
             /**
              * Format: date-time
              * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
              * @example 2026-01-15T10:30:00+00:00
              */
             readonly createdAt?: string | null;
@@ -814,17 +1165,25 @@ export interface components {
              * Format: date-time
              * @description Last update date.
              * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
              */
             readonly updatedAt?: string | null;
         };
         "Alert.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example Alert */
+            /**
+             * @example Alert
+             * @example Alert
+             */
             type: string;
             attributes?: {
                 /**
                  * @description Alert name
+                 * @example 2-bedroom apartments in Paris
                  * @example 2-bedroom apartments in Paris
                  */
                 name?: string | null;
@@ -834,7 +1193,63 @@ export interface components {
                  */
                 enabled: boolean;
                 /**
-                 * @description Search criteria tree (nested and/or groups with sets of property filters). Same shape as the POST /properties criteria.
+                 * @description Search criteria tree (nested and/or groups with sets of property filters). Same shape as the POST /properties criteria. Absent when the alert has no criteria, which means it matches every property except new-build and under-construction ones.
+                 * @example {
+                 *       "and": [
+                 *         {
+                 *           "property": {
+                 *             "type": {
+                 *               "in": [
+                 *                 "FLAT",
+                 *                 "HOUSE"
+                 *               ]
+                 *             },
+                 *             "transaction": {
+                 *               "type": "SELL"
+                 *             },
+                 *             "pricing": {
+                 *               "displayed": {
+                 *                 "gte": 200000,
+                 *                 "lte": 450000
+                 *               }
+                 *             },
+                 *             "unit": {
+                 *               "bedrooms": {
+                 *                 "gte": 2
+                 *               }
+                 *             }
+                 *           }
+                 *         },
+                 *         {
+                 *           "or": [
+                 *             {
+                 *               "property": {
+                 *                 "locations": {
+                 *                   "countryCode": "FR",
+                 *                   "in": {
+                 *                     "uniqueCodes": [
+                 *                       "75056"
+                 *                     ]
+                 *                   }
+                 *                 }
+                 *               }
+                 *             },
+                 *             {
+                 *               "property": {
+                 *                 "locations": {
+                 *                   "countryCode": "FR",
+                 *                   "in": {
+                 *                     "uniqueCodes": [
+                 *                       "69123"
+                 *                     ]
+                 *                   }
+                 *                 }
+                 *               }
+                 *             }
+                 *           ]
+                 *         }
+                 *       ]
+                 *     }
                  * @example {
                  *       "and": [
                  *         {
@@ -895,14 +1310,17 @@ export interface components {
                 criteria?: {
                     [key: string]: unknown;
                 };
+                /** @description Notification configuration. Omit it and the alert never notifies: it is what selects the event types you receive. */
                 notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
                 /**
                  * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+                 * @example whsec_abc123...
                  * @example whsec_abc123...
                  */
                 readonly signingKey?: string | null;
                 /**
                  * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                 * @example b75b1473
                  * @example b75b1473
                  */
                 readonly signingKeyHint?: string | null;
@@ -910,11 +1328,13 @@ export interface components {
                  * Format: date-time
                  * @description Creation date.
                  * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
                  */
                 readonly createdAt?: string | null;
                 /**
                  * Format: date-time
                  * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
                  * @example 2026-05-20T14:45:00+00:00
                  */
                 readonly updatedAt?: string | null;
@@ -926,15 +1346,23 @@ export interface components {
                      *       "type": "EventDestination",
                      *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
                      *     }
+                     * @example {
+                     *       "type": "EventDestination",
+                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
                      */
                     data?: null | {
-                        /** @example EventDestination */
-                        type?: string;
+                        /**
+                         * @example EventDestination
+                         * @example EventDestination
+                         */
+                        type: string;
                         /**
                          * Format: iri-reference
                          * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
                          */
-                        id?: string;
+                        id: string;
                     };
                 };
             };
@@ -945,23 +1373,35 @@ export interface components {
              * Format: iri-reference
              * @description Alert
              * @example https://example.com/
+             * @example https://example.com/
              */
             alert?: string;
             /**
              * Format: iri-reference
              * @description Property matched by this event
              * @example https://example.com/
+             * @example https://example.com/
              */
             property?: string;
             /**
              * @description Event type that triggered notification
-             * @example PRICE_CHANGED
+             * @example PRICE_CHANGE
+             * @example PRICE_CHANGE
              * @enum {string}
              */
-            eventType?: "NEW_MATCH" | "ADDITIONAL_LISTING" | "PRICE_CHANGED" | "ANY_ATTRIBUTE_CHANGED" | "LISTING_EXPIRED" | "LISTING_REACTIVATED";
+            eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+            /**
+             * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did. Both name a listing, so this is the only field that tells them apart.
+             * @default PROPERTY
+             * @example PROPERTY
+             * @example PROPERTY
+             * @enum {string}
+             */
+            scope: "PROPERTY" | "LISTING";
             /**
              * Format: date-time
-             * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert does not subscribe to its type, when it is no longer active, or when no delivery destination could be resolved.
+             * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved. Events matching none of the alert notification rules are never listed here.
+             * @example 2026-07-28T09:15:00+00:00
              * @example 2026-07-28T09:15:00+00:00
              */
             notifiedAt?: string | null;
@@ -969,11 +1409,13 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
             /**
              * Format: date-time
              * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
              * @example 2026-01-15T10:30:00+00:00
              */
             readonly createdAt?: string | null;
@@ -981,25 +1423,42 @@ export interface components {
              * Format: date-time
              * @description Last update date.
              * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
              */
             readonly updatedAt?: string | null;
         };
         /** @description Data is retained for 12 months, after which it is permanently deleted. */
         "AlertEvent.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example AlertEvent */
+            /**
+             * @example AlertEvent
+             * @example AlertEvent
+             */
             type: string;
             attributes?: {
                 /**
                  * @description Event type that triggered notification
-                 * @example PRICE_CHANGED
+                 * @example PRICE_CHANGE
+                 * @example PRICE_CHANGE
                  * @enum {string}
                  */
-                eventType?: "NEW_MATCH" | "ADDITIONAL_LISTING" | "PRICE_CHANGED" | "ANY_ATTRIBUTE_CHANGED" | "LISTING_EXPIRED" | "LISTING_REACTIVATED";
+                eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+                /**
+                 * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did. Both name a listing, so this is the only field that tells them apart.
+                 * @default PROPERTY
+                 * @example PROPERTY
+                 * @example PROPERTY
+                 * @enum {string}
+                 */
+                scope: "PROPERTY" | "LISTING";
                 /**
                  * Format: date-time
-                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert does not subscribe to its type, when it is no longer active, or when no delivery destination could be resolved.
+                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved. Events matching none of the alert notification rules are never listed here.
+                 * @example 2026-07-28T09:15:00+00:00
                  * @example 2026-07-28T09:15:00+00:00
                  */
                 notifiedAt?: string | null;
@@ -1007,11 +1466,13 @@ export interface components {
                  * Format: date-time
                  * @description Creation date.
                  * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
                  */
                 readonly createdAt?: string | null;
                 /**
                  * Format: date-time
                  * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
                  * @example 2026-05-20T14:45:00+00:00
                  */
                 readonly updatedAt?: string | null;
@@ -1023,15 +1484,23 @@ export interface components {
                      *       "type": "Alert",
                      *       "id": "/alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6"
                      *     }
+                     * @example {
+                     *       "type": "Alert",
+                     *       "id": "/alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
                      */
                     data?: null | {
-                        /** @example Alert */
-                        type?: string;
+                        /**
+                         * @example Alert
+                         * @example Alert
+                         */
+                        type: string;
                         /**
                          * Format: iri-reference
                          * @example /alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6
                          */
-                        id?: string;
+                        id: string;
                     };
                 };
                 property?: {
@@ -1040,59 +1509,120 @@ export interface components {
                      *       "type": "Property",
                      *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
                      *     }
+                     * @example {
+                     *       "type": "Property",
+                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
                      */
                     data?: null | {
-                        /** @example Property */
-                        type?: string;
+                        /**
+                         * @example Property
+                         * @example Property
+                         */
+                        type: string;
                         /**
                          * Format: iri-reference
                          * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
                          */
-                        id?: string;
+                        id: string;
                     };
                 };
             };
         };
+        /**
+         * @description How many new matches alert criteria would have sent over the last days, so a client can size an alert
+         *     before saving it. Computed on every call; writes nothing and is not billed.
+         */
+        AlertForecast: {
+            /**
+             * @description Number of whole days the estimate is computed over.
+             * @example 30
+             * @example 30
+             */
+            windowDays?: number;
+            /**
+             * @description New matches over the whole window.
+             * @example 2520
+             * @example 2520
+             */
+            total?: number;
+            /**
+             * @description New matches per day: the average, and the range most days fall in.
+             * @example {
+             *       "average": 84,
+             *       "low": 61,
+             *       "high": 112
+             *     }
+             * @example {
+             *       "average": 84,
+             *       "low": 61,
+             *       "high": 112
+             *     }
+             */
+            perDay?: components["schemas"]["AlertVolumeRange"];
+            /**
+             * @description New matches per hour: the average, and the range most hours fall in. Arrivals come in bursts, so the high end can sit well above the average when matches are frequent.
+             * @example {
+             *       "average": 3.5,
+             *       "low": 0,
+             *       "high": 9
+             *     }
+             * @example {
+             *       "average": 3.5,
+             *       "low": 0,
+             *       "high": 9
+             *     }
+             */
+            perHour?: components["schemas"]["AlertVolumeRange"];
+        };
         AlertNotificationConfig: {
+            /** @description Notification rules, combined as independent subscriptions: each rule fires on its own. Only PRICE_CHANGE rules take a variationPercent window; the other event types notify on every occurrence. */
             rules?: components["schemas"]["AlertNotificationRule"][];
         };
         AlertNotificationRule: {
             /**
-             * @description Whether this rule notifies. Set false to keep it but stop notifying on its event.
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * @description Which alert event this rule applies to. An event type with no rule of its own is never notified, so list every event you want to receive. Only `PRICE_CHANGED` uses the threshold fields below; the other event types ignore them.
-             * @example PRICE_CHANGED
-             * @enum {string}
-             */
-            eventType?: "NEW_MATCH" | "ADDITIONAL_LISTING" | "PRICE_CHANGED" | "ANY_ATTRIBUTE_CHANGED" | "LISTING_EXPIRED" | "LISTING_REACTIVATED";
-            /**
-             * @description Only for `eventType` `PRICE_CHANGED`. Simple threshold, recorded but not yet applied: it will notify when the price changes by at least this percentage. Mutually exclusive with `thresholdMinPercentage` and `thresholdMaxPercentage`.
-             * @example 5
-             */
-            thresholdPercentage?: number | null;
-            /**
-             * @description Only for `eventType` `PRICE_CHANGED`. Lower bound of the range threshold, recorded but not yet applied. Use with `thresholdMaxPercentage` instead of `thresholdPercentage`.
-             * @example 5
-             */
-            thresholdMinPercentage?: number | null;
-            /**
-             * @description Only for `eventType` `PRICE_CHANGED`. Upper bound of the range threshold, recorded but not yet applied. Must be greater than `thresholdMinPercentage`.
-             * @example 10
-             */
-            thresholdMaxPercentage?: number | null;
-            /**
-             * @description Only for `eventType` `PRICE_CHANGED`. Restricts notifications to price increases or decreases; recorded but not yet applied.
-             * @example INCREASE
+             * @description Which event notifies. NEW_MATCH: the subject enters your search perimeter. PRICE_CHANGE: its price changes. OTHER_CHANGE: another attribute changes. EXPIRED: it leaves the market. REACTIVATED: it returns to the market, also when you were never told about it, so subscribe to both NEW_MATCH and REACTIVATED to hear of every subject entering your search. MERGED: a property you were told about turned out to be the same as another one and was merged into it. MERGED cannot be subscribed to yet: it opens, for scope PROPERTY, with the new alert engine. An event type with no rule never notifies, so add a rule for every event you want to receive. OTHER_CHANGE covers every watched attribute except how precisely we placed the property: a coordinate moving inside the same commune is not a change to the advert.
+             * @example PRICE_CHANGE
+             * @example PRICE_CHANGE
              * @enum {string|null}
              */
-            thresholdDirection?: "INCREASE" | "DECREASE" | null;
+            eventType: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED" | null;
+            /**
+             * @description What the notification talks about, and therefore how it will be grouped. PROPERTY (default): one notification per property — an identical change published on several listings of the same property notifies once. LISTING: one notification per listing, including cross-posts.
+             * @default PROPERTY
+             * @example PROPERTY
+             * @example PROPERTY
+             * @enum {string}
+             */
+            scope: "PROPERTY" | "LISTING";
+            /** @description Only for eventType PRICE_CHANGE: the signed variation windows that will trigger a notification, in percent — a drop is negative. A movement notifies when it falls in any one of them. Examples: a drop of at least 5% is one window with lte -5; a move of 5% either way is two windows, lte -5 and gte 5; a drop between 20% and 40% is one window with gte -40 and lte -20. Omit, or send an empty list, for every price change. */
+            variationPercent?: components["schemas"]["SignedFloatRange"][];
+        };
+        AlertVolumeRange: {
+            /**
+             * @description Average number of new matches per period over the window, periods with none included.
+             * @example 13.7
+             * @example 13.7
+             */
+            average?: number;
+            /**
+             * @description Low end of the usual range: at most one period in ten had fewer new matches.
+             * @example 6
+             * @example 6
+             */
+            low?: number;
+            /**
+             * @description High end of the usual range: at most one period in ten had more new matches.
+             * @example 24
+             * @example 24
+             */
+            high?: number;
         };
         AmenitiesParking: {
             /**
              * @description Parking facility type (covered, garage, outdoor, …).
+             * @example COVERED
              * @example COVERED
              * @enum {string|null}
              */
@@ -1100,83 +1630,102 @@ export interface components {
             /**
              * @description Total number of parking spaces in the facility.
              * @example 25
+             * @example 25
              */
             spaces?: number | null;
         };
         AmenitiesSection: {
+            /** @description Building-wide parking facility — distinct from unit.parking. */
             parking?: components["schemas"]["AmenitiesParking"] | null;
             /**
              * @description Building has an elevator.
+             * @example true
              * @example true
              */
             elevator?: boolean | null;
             /**
              * @description Intercom (parlophone) at the entrance.
              * @example true
+             * @example true
              */
             intercom?: boolean | null;
             /**
              * @description Keypad code at the entrance.
+             * @example true
              * @example true
              */
             digicode?: boolean | null;
             /**
              * @description Caretaker / concierge on site.
              * @example true
+             * @example true
              */
             caretaker?: boolean | null;
             /**
              * @description Bicycle storage room.
+             * @example true
              * @example true
              */
             bikeRoom?: boolean | null;
             /**
              * @description Residence-level disabled access.
              * @example false
+             * @example false
              */
             disabledAccess?: boolean | null;
             /**
              * @description Shared gym.
+             * @example false
              * @example false
              */
             gym?: boolean | null;
             /**
              * @description Children playground.
              * @example false
+             * @example false
              */
             playground?: boolean | null;
             /**
              * @description Shared party hall.
+             * @example false
              * @example false
              */
             partyHall?: boolean | null;
             /**
              * @description Sport court (tennis, basketball, …).
              * @example false
+             * @example false
              */
             sportCourt?: boolean | null;
             /**
              * @description Adult game room (pool, billiards, …).
+             * @example false
              * @example false
              */
             adultGameRoom?: boolean | null;
             /**
              * @description Gated community.
              * @example false
+             * @example false
              */
             gatedCommunity?: boolean | null;
             /**
              * @description Shared barbecue grill area.
+             * @example false
              * @example false
              */
             barbecueGrill?: boolean | null;
             /**
              * @description Shared swimming pool.
              * @example false
+             * @example false
              */
             swimmingPool?: boolean | null;
             /**
              * @description Available connectivity options (cable, fiber).
+             * @example [
+             *       "FIBER"
+             *     ]
              * @example [
              *       "FIBER"
              *     ]
@@ -1187,16 +1736,19 @@ export interface components {
             /**
              * @description Override for the annexes unit. Present only when it diverges from area.unit; otherwise inherit the headline.
              * @example SQM
+             * @example SQM
              * @enum {string|null}
              */
             unit?: "SQM" | "SQFT" | "HECTARE" | "ACRE" | null;
             /**
-             * @description Basement area (max across listings).
+             * @description Basement area (value most listings report).
+             * @example 10
              * @example 10
              */
             basement?: number | null;
             /**
-             * @description Parking area (max across listings).
+             * @description Parking area (value most listings report).
+             * @example 12
              * @example 12
              */
             parking?: number | null;
@@ -1208,37 +1760,108 @@ export interface components {
             byApiKey?: components["schemas"]["ApiUsageByApiKeyItem"][];
             byRoute?: components["schemas"]["ApiUsageByRouteItem"][];
             byChannel?: components["schemas"]["ApiUsageByChannelItem"][];
+            byAlert?: components["schemas"]["ApiUsageByAlertItem"][];
         };
         "ApiUsage.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example ApiUsage */
+            /**
+             * @example ApiUsage
+             * @example ApiUsage
+             */
             type: string;
-            attributes?: components["schemas"]["ApiUsage"];
+            attributes?: {
+                period?: components["schemas"]["ApiUsagePeriod"];
+                totals?: components["schemas"]["ApiUsageTotals"];
+                timeSeries?: components["schemas"]["ApiUsageTimeSeriesItem"][];
+                byApiKey?: components["schemas"]["ApiUsageByApiKeyItem"][];
+                byRoute?: components["schemas"]["ApiUsageByRouteItem"][];
+                byChannel?: components["schemas"]["ApiUsageByChannelItem"][];
+                byAlert?: components["schemas"]["ApiUsageByAlertItem"][];
+            };
+        };
+        ApiUsageByAlertItem: {
+            /**
+             * @description Id of the alert these notifications came from. Null for notifications sent before the alert was recorded against them; those arrive as a single row.
+             * @example 4f2e1a7c-9b3d-4e8a-8c1f-2d6b4a8e0c93
+             * @example 4f2e1a7c-9b3d-4e8a-8c1f-2d6b4a8e0c93
+             */
+            alertId?: string | null;
+            /**
+             * @description Name of the alert when these notifications were sent, kept after the alert is deleted. Empty for the row with no alert id, and for an alert without a name.
+             * @example Paris 2-bedroom under 500k
+             * @example Paris 2-bedroom under 500k
+             */
+            alertName?: string;
+            /**
+             * @description True when the alert has been deleted since, false while it still exists, enabled or not. Null for the row with no alert id.
+             * @example false
+             * @example false
+             */
+            deleted?: boolean | null;
+            /**
+             * @description Channel these notifications were sent over.
+             * @example WEBHOOK
+             * @example WEBHOOK
+             * @enum {string}
+             */
+            channel?: "EMAIL" | "WEBHOOK";
+            /**
+             * @description Notifications this alert produced over the period.
+             * @example 1840
+             * @example 1840
+             */
+            notifications?: number;
+            /**
+             * @description Of those, the ones your endpoint accepted.
+             * @example 1828
+             * @example 1828
+             */
+            delivered?: number;
+            /**
+             * @description Of those, the ones not accepted within the period.
+             * @example 12
+             * @example 12
+             */
+            failed?: number;
+            /**
+             * @description Delivery attempts made for this alert, retries included.
+             * @example 1853
+             * @example 1853
+             */
+            attempts?: number;
         };
         ApiUsageByApiKeyItem: {
             /**
              * @description Id of the API key these usage figures belong to. Null for calls made without an API key.
+             * @example 7c1f0e8a-2b6d-4f3a-9e1c-5a8b2d4f6c10
              * @example 7c1f0e8a-2b6d-4f3a-9e1c-5a8b2d4f6c10
              */
             apiKeyId?: string | null;
             /**
              * @description Human-readable name of the API key. Null for calls made without an API key.
              * @example Production backend
+             * @example Production backend
              */
             apiKeyName?: string | null;
             /**
              * @description Current status of the API key. Null for calls made without an API key.
+             * @example active
              * @example active
              */
             status?: string | null;
             /**
              * @description Number of API calls made with this key over the period.
              * @example 31540
+             * @example 31540
              */
             calls?: number;
             /**
              * @description Number of results returned to this key over the period.
+             * @example 820460
              * @example 820460
              */
             results?: number;
@@ -1247,16 +1870,19 @@ export interface components {
             /**
              * @description How the calls were issued: directly against the API, or through the MCP server.
              * @example DIRECT
+             * @example DIRECT
              * @enum {string}
              */
             channel?: "DIRECT" | "MCP";
             /**
              * @description Number of API calls issued through this channel over the period.
              * @example 26310
+             * @example 26310
              */
             calls?: number;
             /**
              * @description Number of results returned through this channel over the period.
+             * @example 701920
              * @example 701920
              */
             results?: number;
@@ -1265,10 +1891,12 @@ export interface components {
             /**
              * @description API route these usage figures belong to.
              * @example /properties
+             * @example /properties
              */
             route?: string;
             /**
              * @description Category of the route. Reported as other for a route that was charged in a period it made no recorded calls in.
+             * @example search
              * @example search
              * @enum {string}
              */
@@ -1276,70 +1904,115 @@ export interface components {
             /**
              * @description Number of API calls made to this route over the period.
              * @example 26310
+             * @example 26310
              */
             calls?: number;
             /**
              * @description Number of results returned by this route over the period.
+             * @example 701920
              * @example 701920
              */
             results?: number;
             /**
              * @description Credits this route cost over the period. Absent when the account is not billed in credits, and when the report is filtered by API key or channel. A route whose calls fall into more than one category carries the whole cost on its first row and zero on the others, so the column still adds up to the total. A row showing no calls is a charge posted in this period for a call made before it.
              * @example 26310
+             * @example 26310
              */
             credits?: number | null;
+        };
+        ApiUsageNotificationCounts: {
+            /**
+             * @description Notifications sent over the period. Counted once each, however many delivery attempts they took.
+             * @example 1840
+             * @example 1840
+             */
+            notifications?: number;
+            /**
+             * @description Notifications your endpoint accepted. A notification retried after a failure counts here once it succeeds, not in both figures.
+             * @example 1828
+             * @example 1828
+             */
+            delivered?: number;
+            /**
+             * @description Notifications not accepted within the period. A notification still being retried when the period ends counts here until an attempt succeeds.
+             * @example 12
+             * @example 12
+             */
+            failed?: number;
+            /**
+             * @description Delivery attempts made, retries included. Higher than the number of notifications whenever an attempt had to be repeated.
+             * @example 1853
+             * @example 1853
+             */
+            attempts?: number;
         };
         ApiUsagePeriod: {
             /**
              * @description Start of the reported period, included.
+             * @example 2026-01-15T00:00:00Z
              * @example 2026-01-15T00:00:00Z
              */
             start?: string;
             /**
              * @description End of the reported period, excluded.
              * @example 2026-02-15T00:00:00Z
+             * @example 2026-02-15T00:00:00Z
              */
             end?: string;
             /**
              * @description Time granularity the usage is bucketed by.
              * @example DAY
+             * @example DAY
              * @enum {string}
              */
             granularity?: "YEAR" | "QUARTER" | "MONTH" | "WEEK" | "DAY";
+            /**
+             * @description Start of the period the notification figures cover, when notifications are kept for less time than the period asked for. Absent when they cover the whole period.
+             * @example 2026-01-15T00:00:00Z
+             * @example 2026-01-15T00:00:00Z
+             */
+            notificationsFrom?: string | null;
         };
         ApiUsageTimeSeriesItem: {
             /**
              * @description Time bucket these figures cover.
+             * @example 2026-01-15
              * @example 2026-01-15
              */
             period?: string;
             /**
              * @description Number of API calls made during this bucket.
              * @example 1620
+             * @example 1620
              */
             calls?: number;
             /**
              * @description Number of results returned during this bucket.
+             * @example 42180
              * @example 42180
              */
             results?: number;
             /**
              * @description Id of the API key this row covers. Set when groupBy is apiKey; null for calls made without an API key.
              * @example 7c1f0e8a-2b6d-4f3a-9e1c-5a8b2d4f6c10
+             * @example 7c1f0e8a-2b6d-4f3a-9e1c-5a8b2d4f6c10
              */
             apiKeyId?: string | null;
             /**
              * @description Name of the API key this row covers. Set when groupBy is apiKey.
+             * @example Production backend
              * @example Production backend
              */
             apiKeyName?: string | null;
             /**
              * @description Route this row covers. Set when groupBy is route.
              * @example /properties
+             * @example /properties
              */
             route?: string | null;
             /**
              * @description Type of operation the route performs. Set when groupBy is route.
+             * @example search
              * @example search
              * @enum {string|null}
              */
@@ -1347,52 +2020,72 @@ export interface components {
             /**
              * @description Channel the calls were issued through. Set when groupBy is channel.
              * @example DIRECT
+             * @example DIRECT
              * @enum {string|null}
              */
             channel?: "DIRECT" | "MCP" | null;
+            /** @description Webhook notifications during this bucket. Absent when groupBy is set, or when the report is filtered by API key or channel, because a notification carries none of those. */
+            webhooks?: components["schemas"]["ApiUsageNotificationCounts"] | null;
+            /** @description Email notifications during this bucket. Absent when groupBy is set, or when the report is filtered by API key or channel, because a notification carries none of those. */
+            emails?: components["schemas"]["ApiUsageNotificationCounts"] | null;
         };
         ApiUsageTotals: {
             /**
              * @description Total number of API calls over the period.
+             * @example 48230
              * @example 48230
              */
             calls?: number;
             /**
              * @description Total number of results returned over the period.
              * @example 1264870
+             * @example 1264870
              */
             results?: number;
             /**
              * @description Credits these calls cost over the period. Absent when the account is not billed in credits, and when the report is filtered by API key or channel, because a charge is recorded against the account and not against either.
              * @example 48230
+             * @example 48230
              */
             credits?: number | null;
+            /** @description Webhook notifications over the period. Absent when the report is filtered by API key or channel, because a notification is recorded against neither. */
+            webhooks?: components["schemas"]["ApiUsageNotificationCounts"] | null;
+            /** @description Email notifications over the period. Absent when the report is filtered by API key or channel, because a notification is recorded against neither. */
+            emails?: components["schemas"]["ApiUsageNotificationCounts"] | null;
         };
         AreaSection: {
             /**
-             * @description Headline surface for the property. Per-dimension max across listings (living, total, terrace, balcony, garden, basement, parking, land). displayed is the headline surface — largest indoor living, fallback to largest indoor total.
+             * @description Headline surface for the property. Per-dimension value most listings report, surfaces within 2 % counting as one (recency tie-break, largest when no two listings agree): living, total, terrace, balcony, garden, basement, parking, land. displayed is the headline surface — indoor living, fallback to indoor total.
+             * @example 56
              * @example 56
              */
             displayed?: number | null;
             /**
              * @description Headline unit system for every surface under area. Sub-sections only carry their own unit when it diverges (typical case: SQM building + HECTARE land).
              * @example SQM
+             * @example SQM
              * @enum {string|null}
              */
             unit?: "SQM" | "SQFT" | "HECTARE" | "ACRE" | null;
+            /** @description Indoor areas breakdown (living, total, legal). */
             indoor?: components["schemas"]["IndoorArea"] | null;
+            /** @description Outdoor areas breakdown (terrace, balcony, garden). */
             outdoor?: components["schemas"]["OutdoorArea"] | null;
+            /** @description Annexes breakdown (basement, parking). */
             annexes?: components["schemas"]["AnnexesArea"] | null;
+            /** @description Land area. */
             land?: components["schemas"]["LandArea"] | null;
         };
         BodySection: {
             /**
              * @description Canonical listing title. Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash.
              * @example Beautiful flat in Paris
+             * @example Beautiful flat in Paris
              */
             title?: string | null;
             /**
              * @description Canonical listing description. Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash.
+             * @example Renovated flat on a quiet street, close to transit and shops.
              * @example Renovated flat on a quiet street, close to transit and shops.
              */
             description?: string | null;
@@ -1401,22 +2094,26 @@ export interface components {
             /**
              * @description Whether the building is currently under legal proceedings.
              * @example false
+             * @example false
              */
             underLegalProceedings?: boolean | null;
         };
         BuildingSection: {
             /**
-             * @description Year the building was constructed (min reported across listings).
+             * @description Year the building was constructed (value most listings report, else the earliest).
+             * @example 1980
              * @example 1980
              */
             constructionYear?: number | null;
             /**
-             * @description Year of the most recent major renovation (max reported across listings).
+             * @description Year of the most recent major renovation (value most listings report).
+             * @example 2020
              * @example 2020
              */
             renovationYear?: number | null;
             /**
              * @description Building construction type (Haussmannian, modern, …). Most-frequent + recency tie-break.
+             * @example HAUSSMANNIAN
              * @example HAUSSMANNIAN
              * @enum {string|null}
              */
@@ -1424,32 +2121,39 @@ export interface components {
             /**
              * @description Building condition (structure / common parts). Distinct from unit.condition.
              * @example GOOD
+             * @example GOOD
              * @enum {string|null}
              */
             condition?: "NEW" | "GOOD" | "TO_RENOVATE" | null;
             /**
-             * @description Total number of floors in the building (max across listings).
+             * @description Total number of floors in the building (value most listings report).
+             * @example 6
              * @example 6
              */
             floors?: number | null;
             /**
              * @description Number of lots in the building / copropriété.
              * @example 45
+             * @example 45
              */
             numberOfLots?: number | null;
+            /** @description Legal status facet (nested so future legal states can be added without a breaking change). */
             legalStatus?: components["schemas"]["Building.LegalStatus"] | null;
+            /** @description Building-level energy equipment (collective heating systems typically). Distinct from unit.energy which describes the apartment-level equipment. */
             energy?: components["schemas"]["UnitEnergy"] | null;
         };
         ChangeSection: {
             /**
              * @description The attribute that changed.
              * @example DISPLAYED_PRICE
+             * @example DISPLAYED_PRICE
              * @enum {string|null}
              */
-            attribute?: "DISPLAYED_PRICE" | "DISPLAYED_AREA" | "DESCRIPTION" | "TITLE" | "FEATURES" | "ROOMS" | "BEDROOMS" | "ADDRESS" | "GEO_POINT" | "CITY" | "DISTRICT" | "NEIGHBORHOOD" | "LOCATION_ACCURACY" | "PICTURES" | null;
+            attribute?: "DISPLAYED_PRICE" | "DISPLAYED_AREA" | "DESCRIPTION" | "TITLE" | "FEATURES" | "ROOMS" | "BEDROOMS" | "ADDRESS" | "GEO_POINT" | "CITY" | "DISTRICT" | "NEIGHBORHOOD" | "LOCATION_ACCURACY" | "PICTURES" | "MARKET_PRESENCE" | null;
             /**
              * @description When the change occurred (ISO 8601).
              * @default
+             * @example 2026-07-20T09:30:00+00:00
              * @example 2026-07-20T09:30:00+00:00
              */
             occurredAt: string;
@@ -1457,26 +2161,31 @@ export interface components {
              * @description Id of the listing that carried the change.
              * @default
              * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
+             * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
              */
             listingId: string;
             /**
              * @description Id of the revision the change belongs to. Changes sharing this id were captured together in the same update.
              * @default
              * @example 019dedb1-fe02-72a1-9d70-4a1b2c3d4e5f
+             * @example 019dedb1-fe02-72a1-9d70-4a1b2c3d4e5f
              */
             revisionId: string;
             /**
              * @description Signed variation percent for numeric changes such as price or area; a drop is negative. Absent for other attributes.
+             * @example -5.2
              * @example -5.2
              */
             variationPercent?: number | null;
             /**
              * @description Previous value for numeric changes.
              * @example 100000
+             * @example 100000
              */
             numericOld?: number | null;
             /**
              * @description New value for numeric changes.
+             * @example 90000
              * @example 90000
              */
             numericNew?: number | null;
@@ -1485,10 +2194,12 @@ export interface components {
             /**
              * @description Total charges amount.
              * @example 120
+             * @example 120
              */
             amount?: number | null;
             /**
              * @description Currency of the total.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -1496,19 +2207,23 @@ export interface components {
             /**
              * @description Billing frequency.
              * @example MONTHLY
+             * @example MONTHLY
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
+            /** @description Per-category breakdown deduplicated across listings. */
             details?: components["schemas"]["Pricing.ChargeDetail"][];
         };
         Condominium: {
             /**
              * @description Total condominium fee.
              * @example 1020
+             * @example 1020
              */
             total?: number | null;
             /**
              * @description Currency of the total.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -1516,14 +2231,17 @@ export interface components {
             /**
              * @description Billing frequency.
              * @example MONTHLY
+             * @example MONTHLY
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
+            /** @description Per-category breakdown deduplicated across listings. */
             breakdown?: components["schemas"]["CondominiumFee"][];
         };
         CondominiumFee: {
             /**
              * @description Condominium fee category (heating, water, caretaker, …).
+             * @example MAINTENANCE
              * @example MAINTENANCE
              * @enum {string|null}
              */
@@ -1531,16 +2249,19 @@ export interface components {
             /**
              * @description Fee amount.
              * @example 85
+             * @example 85
              */
             amount?: number | null;
             /**
              * @description Currency of the fee.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
             currency?: "EUR" | "USD" | null;
             /**
              * @description Billing frequency.
+             * @example MONTHLY
              * @example MONTHLY
              * @enum {string|null}
              */
@@ -1552,44 +2273,89 @@ export interface components {
              * @description HTTP status code applicable to this problem.
              * @default 422
              * @example 422
+             * @example 422
              */
             status: number;
             /**
              * @description Human-readable explanation specific to this occurrence.
+             * @example name: This value should not be blank.
              * @example name: This value should not be blank.
              */
             readonly detail?: string;
             /**
              * @description URI reference identifying the problem type.
              * @example /validation_errors/c1051bb4-d103-4f74-8988-acbcafc7fdc3
+             * @example /validation_errors/c1051bb4-d103-4f74-8988-acbcafc7fdc3
              */
             readonly type?: string;
             /**
              * @description Short, human-readable summary of the problem.
+             * @example Validation Failed
              * @example Validation Failed
              */
             readonly title?: string | null;
             /**
              * @description URI reference identifying the specific occurrence.
              * @example /alerts
+             * @example /alerts
              */
             readonly instance?: string | null;
         };
         "ConstraintViolation.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example ConstraintViolation */
+            /**
+             * @example ConstraintViolation
+             * @example ConstraintViolation
+             */
             type: string;
-            attributes?: components["schemas"]["ConstraintViolation"];
+            attributes?: {
+                /**
+                 * @description HTTP status code applicable to this problem.
+                 * @default 422
+                 * @example 422
+                 * @example 422
+                 */
+                status: number;
+                /**
+                 * @description Human-readable explanation specific to this occurrence.
+                 * @example name: This value should not be blank.
+                 * @example name: This value should not be blank.
+                 */
+                readonly detail?: string;
+                /**
+                 * @description URI reference identifying the problem type.
+                 * @example /validation_errors/c1051bb4-d103-4f74-8988-acbcafc7fdc3
+                 * @example /validation_errors/c1051bb4-d103-4f74-8988-acbcafc7fdc3
+                 */
+                readonly _type?: string;
+                /**
+                 * @description Short, human-readable summary of the problem.
+                 * @example Validation Failed
+                 * @example Validation Failed
+                 */
+                readonly title?: string | null;
+                /**
+                 * @description URI reference identifying the specific occurrence.
+                 * @example /alerts
+                 * @example /alerts
+                 */
+                readonly instance?: string | null;
+            };
         };
         DateMutationRange: {
             /**
              * @description Only transactions on or after this date (YYYY-MM-DD).
              * @example 2024-01-01
+             * @example 2024-01-01
              */
             after?: string | null;
             /**
              * @description Only transactions on or before this date (YYYY-MM-DD).
+             * @example 2024-12-31
              * @example 2024-12-31
              */
             before?: string | null;
@@ -1598,10 +2364,12 @@ export interface components {
             /**
              * @description Security deposit amount.
              * @example 1450
+             * @example 1450
              */
             amount?: number | null;
             /**
              * @description Currency of the deposit.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -1609,10 +2377,12 @@ export interface components {
             /**
              * @description Deposit duration expressed in rent months.
              * @example 1
+             * @example 1
              */
             months?: number | null;
             /**
              * @description Who pays the deposit.
+             * @example TENANT
              * @example TENANT
              * @enum {string|null}
              */
@@ -1623,15 +2393,18 @@ export interface components {
             /**
              * @description Unique identifier of this error occurrence.
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             id?: string | null;
             /**
              * @description A short, human-readable summary of the problem.
              * @example Not Found
+             * @example Not Found
              */
             readonly title?: string | null;
             /**
              * @description A human-readable explanation specific to this occurrence of the problem.
+             * @example The requested resource could not be found.
              * @example The requested resource could not be found.
              */
             readonly detail?: string | null;
@@ -1644,10 +2417,12 @@ export interface components {
             /**
              * @description A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced.
              * @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly instance?: string | null;
             /**
              * @description A URI reference that identifies the problem type
+             * @example /errors/404
              * @example /errors/404
              */
             readonly type?: string;
@@ -1658,15 +2433,18 @@ export interface components {
                 /**
                  * @description JSON Pointer to the request body element that caused the error.
                  * @example /data/attributes/name
+                 * @example /data/attributes/name
                  */
                 pointer?: string;
                 /**
                  * @description Query parameter that caused the error.
                  * @example page
+                 * @example page
                  */
                 parameter?: string;
                 /**
                  * @description Request header that caused the error.
+                 * @example Authorization
                  * @example Authorization
                  */
                 header?: string;
@@ -1679,6 +2457,7 @@ export interface components {
                 /**
                  * @description HTTP status code applicable to this problem.
                  * @example 404
+                 * @example 404
                  */
                 status?: string | number | null;
             })[];
@@ -1687,11 +2466,13 @@ export interface components {
             /**
              * @description Webhook URL (required when type=webhook). Must be HTTPS. See the alertEvent webhook for the payload, signature and retry behaviour.
              * @example https://your-server.com/webhooks/stream
+             * @example https://your-server.com/webhooks/stream
              */
             url?: string | null;
             /**
              * @description Whether this is your account default destination. Pass true to promote as default; the previous default is automatically demoted. Your first destination becomes the default automatically.
              * @default false
+             * @example true
              * @example true
              */
             isDefault: boolean;
@@ -1704,10 +2485,12 @@ export interface components {
             /**
              * @description HMAC signing key for webhook deliveries. Returned a single time: on the response of the POST that creates the first webhook destination of your account (it is not returned for later destinations and cannot be retrieved again — store it securely). Rotate it from your dashboard.
              * @example whsec_abc123...
+             * @example whsec_abc123...
              */
             readonly signingKey?: string | null;
             /**
              * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+             * @example b75b1473
              * @example b75b1473
              */
             readonly signingKeyHint?: string | null;
@@ -1715,11 +2498,13 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
             /**
              * Format: date-time
              * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
              * @example 2026-01-15T10:30:00+00:00
              */
             readonly createdAt?: string | null;
@@ -1727,20 +2512,74 @@ export interface components {
              * Format: date-time
              * @description Last update date.
              * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
              */
             readonly updatedAt?: string | null;
         };
         "EventDestination.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example EventDestination */
+            /**
+             * @example EventDestination
+             * @example EventDestination
+             */
             type: string;
-            attributes?: components["schemas"]["EventDestination"];
+            attributes?: {
+                /**
+                 * @description Webhook URL (required when type=webhook). Must be HTTPS. See the alertEvent webhook for the payload, signature and retry behaviour.
+                 * @example https://your-server.com/webhooks/stream
+                 * @example https://your-server.com/webhooks/stream
+                 */
+                url?: string | null;
+                /**
+                 * @description Whether this is your account default destination. Pass true to promote as default; the previous default is automatically demoted. Your first destination becomes the default automatically.
+                 * @default false
+                 * @example true
+                 * @example true
+                 */
+                isDefault: boolean;
+                /**
+                 * @description Circuit breaker status: active or suspended
+                 * @default ACTIVE
+                 * @enum {string}
+                 */
+                readonly status: "ACTIVE" | "SUSPENDED";
+                /**
+                 * @description HMAC signing key for webhook deliveries. Returned a single time: on the response of the POST that creates the first webhook destination of your account (it is not returned for later destinations and cannot be retrieved again — store it securely). Rotate it from your dashboard.
+                 * @example whsec_abc123...
+                 * @example whsec_abc123...
+                 */
+                readonly signingKey?: string | null;
+                /**
+                 * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                 * @example b75b1473
+                 * @example b75b1473
+                 */
+                readonly signingKeyHint?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Creation date.
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                readonly createdAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
+                 * @example 2026-05-20T14:45:00+00:00
+                 */
+                readonly updatedAt?: string | null;
+            };
         };
         /** @description Data is retained for 12 months, after which it is permanently deleted. */
         EventNotification: {
             /**
              * @description Delivery channel used for this notification.
+             * @example WEBHOOK
              * @example WEBHOOK
              * @enum {string}
              */
@@ -1748,10 +2587,12 @@ export interface components {
             /**
              * @description Destination URL or address the notification was sent to.
              * @example https://your-server.com/webhooks/stream
+             * @example https://your-server.com/webhooks/stream
              */
             readonly destinationAddress?: string;
             /**
              * @description Current delivery status.
+             * @example DELIVERED
              * @example DELIVERED
              * @enum {string}
              */
@@ -1759,16 +2600,19 @@ export interface components {
             /**
              * @description Number of delivery attempts made so far (including retries).
              * @example 1
+             * @example 1
              */
             readonly attemptNumber?: number;
             /**
              * Format: date-time
              * @description Timestamp of the successful delivery; null while pending or when permanently failed.
              * @example 2026-06-03T14:32:10+00:00
+             * @example 2026-06-03T14:32:10+00:00
              */
             readonly deliveredAt?: string | null;
             /**
              * @description Error message from the last failed attempt; null when successfully delivered.
+             * @example Connection timed out after 5000ms
              * @example Connection timed out after 5000ms
              */
             readonly lastErrorMessage?: string | null;
@@ -1776,11 +2620,13 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
             /**
              * Format: date-time
              * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
              * @example 2026-01-15T10:30:00+00:00
              */
             readonly createdAt?: string | null;
@@ -1788,21 +2634,83 @@ export interface components {
              * Format: date-time
              * @description Last update date.
              * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
              */
             readonly updatedAt?: string | null;
         };
         /** @description Data is retained for 12 months, after which it is permanently deleted. */
         "EventNotification.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example EventNotification */
+            /**
+             * @example EventNotification
+             * @example EventNotification
+             */
             type: string;
-            attributes?: components["schemas"]["EventNotification"];
+            attributes?: {
+                /**
+                 * @description Delivery channel used for this notification.
+                 * @example WEBHOOK
+                 * @example WEBHOOK
+                 * @enum {string}
+                 */
+                channel?: "EMAIL" | "WEBHOOK";
+                /**
+                 * @description Destination URL or address the notification was sent to.
+                 * @example https://your-server.com/webhooks/stream
+                 * @example https://your-server.com/webhooks/stream
+                 */
+                readonly destinationAddress?: string;
+                /**
+                 * @description Current delivery status.
+                 * @example DELIVERED
+                 * @example DELIVERED
+                 * @enum {string}
+                 */
+                status?: "PENDING" | "DELIVERED" | "FAILED" | "SUSPENDED" | "SKIPPED";
+                /**
+                 * @description Number of delivery attempts made so far (including retries).
+                 * @example 1
+                 * @example 1
+                 */
+                readonly attemptNumber?: number;
+                /**
+                 * Format: date-time
+                 * @description Timestamp of the successful delivery; null while pending or when permanently failed.
+                 * @example 2026-06-03T14:32:10+00:00
+                 * @example 2026-06-03T14:32:10+00:00
+                 */
+                readonly deliveredAt?: string | null;
+                /**
+                 * @description Error message from the last failed attempt; null when successfully delivered.
+                 * @example Connection timed out after 5000ms
+                 * @example Connection timed out after 5000ms
+                 */
+                readonly lastErrorMessage?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Creation date.
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                readonly createdAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
+                 * @example 2026-05-20T14:45:00+00:00
+                 */
+                readonly updatedAt?: string | null;
+            };
         };
         FavoriteProperty: {
             /**
              * Format: uuid
              * @description Property id
+             * @example 550e8400-e29b-41d4-a716-446655440000
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
             propertyId: string | null;
@@ -1810,25 +2718,45 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
         };
         "FavoriteProperty.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example FavoriteProperty */
+            /**
+             * @example FavoriteProperty
+             * @example FavoriteProperty
+             */
             type: string;
-            attributes?: components["schemas"]["FavoriteProperty"];
+            attributes?: {
+                /**
+                 * Format: uuid
+                 * @description Property id
+                 * @example 550e8400-e29b-41d4-a716-446655440000
+                 * @example 550e8400-e29b-41d4-a716-446655440000
+                 */
+                propertyId: string | null;
+            };
         };
         GeoJsonGeometry: {
             /**
              * @description GeoJSON geometry type, spelled exactly as in RFC 7946 and case-sensitive: Point, Polygon or MultiPolygon.
+             * @example Point
              * @example Point
              * @enum {string|null}
              */
             type?: "Point" | "Polygon" | "MultiPolygon" | null;
             /**
              * @description GeoJSON (RFC 7946) coordinates. A position [lon, lat] for Point, an array of linear rings for Polygon, an array of polygons for MultiPolygon.
+             * @example [
+             *       2.3522,
+             *       48.8566
+             *     ]
              * @example [
              *       2.3522,
              *       48.8566
@@ -1840,10 +2768,12 @@ export interface components {
             /**
              * @description Tax amount.
              * @example 800
+             * @example 800
              */
             amount?: number | null;
             /**
              * @description Currency of the tax.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -1851,17 +2781,20 @@ export interface components {
             /**
              * @description Billing frequency.
              * @example YEARLY
+             * @example YEARLY
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
             /**
              * @description Who pays the tax.
              * @example TENANT
+             * @example TENANT
              * @enum {string|null}
              */
             paidBy?: "BUYER" | "SELLER" | "OWNER" | "TENANT" | null;
             /**
              * @description Whether the tax is already covered by the rental charges.
+             * @example false
              * @example false
              */
             includedInCharges?: boolean | null;
@@ -1870,17 +2803,21 @@ export interface components {
             /**
              * @description Override for the indoor unit. Present only when it diverges from area.unit; otherwise inherit the headline.
              * @example SQM
+             * @example SQM
              * @enum {string|null}
              */
             unit?: "SQM" | "SQFT" | "HECTARE" | "ACRE" | null;
+            /** @description Legal indoor area (Carrez / Boutin / RERA). */
             legal?: components["schemas"]["IndoorLegalArea"] | null;
             /**
-             * @description Living area in the indoor unit (max across listings).
+             * @description Living area in the indoor unit (value most listings report).
+             * @example 56
              * @example 56
              */
             living?: number | null;
             /**
-             * @description Total indoor area in the indoor unit (max across listings).
+             * @description Total indoor area in the indoor unit (value most listings report).
+             * @example 72
              * @example 72
              */
             total?: number | null;
@@ -1889,10 +2826,12 @@ export interface components {
             /**
              * @description Legal area value in the indoor unit.
              * @example 35
+             * @example 35
              */
             value?: number | null;
             /**
              * @description Legal area framework (Carrez, Boutin, RERA, …).
+             * @example CARREZ
              * @example CARREZ
              * @enum {string|null}
              */
@@ -1906,33 +2845,49 @@ export interface components {
              *       "next": "/sources?page=4",
              *       "last": "/sources?page=12"
              *     }
+             * @example {
+             *       "first": "/sources?page=1",
+             *       "prev": "/sources?page=2",
+             *       "next": "/sources?page=4",
+             *       "last": "/sources?page=12"
+             *     }
              */
             links?: {
                 /**
                  * Format: iri-reference
+                 * @example /sources?page=1
                  * @example /sources?page=1
                  */
                 first?: string;
                 /**
                  * Format: iri-reference
                  * @example /sources?page=2
+                 * @example /sources?page=2
                  */
                 prev?: string;
                 /**
                  * Format: iri-reference
+                 * @example /sources?page=4
                  * @example /sources?page=4
                  */
                 next?: string;
                 /**
                  * Format: iri-reference
                  * @example /sources?page=12
+                 * @example /sources?page=12
                  */
                 last?: string;
             };
             meta?: {
-                /** @example 30 */
+                /**
+                 * @example 30
+                 * @example 30
+                 */
                 itemsPerPage?: number;
-                /** @example 3 */
+                /**
+                 * @example 3
+                 * @example 3
+                 */
                 currentPage?: number;
             };
         };
@@ -1941,16 +2896,23 @@ export interface components {
              * @example {
              *       "self": "/sources?page=3"
              *     }
+             * @example {
+             *       "self": "/sources?page=3"
+             *     }
              */
             links?: {
                 /**
                  * Format: iri-reference
                  * @example /sources?page=3
+                 * @example /sources?page=3
                  */
                 self?: string;
             };
             meta?: {
-                /** @example 240 */
+                /**
+                 * @example 240
+                 * @example 240
+                 */
                 totalItems?: number;
             };
             data: unknown[];
@@ -1959,11 +2921,13 @@ export interface components {
             /**
              * @description Override for the land unit. Present only when it diverges from area.unit — typical case for properties with land (HECTARE/ACRE while the building is SQM/SQFT).
              * @example HECTARE
+             * @example HECTARE
              * @enum {string|null}
              */
             unit?: "SQM" | "SQFT" | "HECTARE" | "ACRE" | null;
             /**
-             * @description Land area in the land unit (max across listings).
+             * @description Land area in the land unit (value most listings report).
+             * @example 320
              * @example 320
              */
             value?: number | null;
@@ -1972,11 +2936,13 @@ export interface components {
             /**
              * @description Legal fee category (notary, registration, …).
              * @example NOTARY
+             * @example NOTARY
              * @enum {string|null}
              */
             type?: "NOTARY" | "REGISTRATION" | "OTHER" | null;
             /**
              * @description Currency of the fee.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -1984,15 +2950,18 @@ export interface components {
             /**
              * @description Fee amount.
              * @example 7500
+             * @example 7500
              */
             amount?: number | null;
             /**
              * @description Fee percentage of the sale price.
              * @example 2.5
+             * @example 2.5
              */
             percentage?: number | null;
             /**
              * @description Who pays the fee.
+             * @example BUYER
              * @example BUYER
              * @enum {string|null}
              */
@@ -2002,7 +2971,8 @@ export interface components {
             /**
              * @description Picture URL.
              * @default
-             * @example https://pictures.stream.estate/123.png
+             * @example https://cdn.stream.estate/storage/properties/2026/10/14/01/0199a4c2-7a2b-7f3c-9d5e-4a0b8f6e3c12.webp
+             * @example https://cdn.stream.estate/storage/properties/2026/10/14/01/0199a4c2-7a2b-7f3c-9d5e-4a0b8f6e3c12.webp
              */
             url: string;
         };
@@ -2011,15 +2981,28 @@ export interface components {
             data?: components["schemas"]["ListingAnalyticsDataItem"][];
         };
         "ListingAnalytics.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example ListingAnalytics */
+            /**
+             * @example ListingAnalytics
+             * @example ListingAnalytics
+             */
             type: string;
-            attributes?: components["schemas"]["ListingAnalytics"];
+            attributes?: {
+                meta?: components["schemas"]["ListingAnalyticsMeta"];
+                data?: components["schemas"]["ListingAnalyticsDataItem"][];
+            };
         };
         ListingAnalyticsDataItem: {
             /**
              * @description Grouping dimensions this row is aggregated by.
+             * @example {
+             *       "city_id": 75056,
+             *       "property_type": "FLAT"
+             *     }
              * @example {
              *       "city_id": 75056,
              *       "property_type": "FLAT"
@@ -2035,6 +3018,11 @@ export interface components {
              *       "avg:price": 612500,
              *       "avg:price_per_sqm": 11240.5
              *     }
+             * @example {
+             *       "count": 1284,
+             *       "avg:price": 612500,
+             *       "avg:price_per_sqm": 11240.5
+             *     }
              */
             metrics?: {
                 [key: string]: number | null;
@@ -2044,15 +3032,18 @@ export interface components {
             /**
              * @description Number of events the aggregation is computed from.
              * @example 18452
+             * @example 18452
              */
             sample_size?: number;
             /**
              * @description Earliest event timestamp included in the sample.
              * @example 2026-01-01T00:00:00Z
+             * @example 2026-01-01T00:00:00Z
              */
             min_event_at?: string | null;
             /**
              * @description Latest event timestamp included in the sample.
+             * @example 2026-03-31T23:59:59Z
              * @example 2026-03-31T23:59:59Z
              */
             max_event_at?: string | null;
@@ -2061,20 +3052,24 @@ export interface components {
             /**
              * @description Number of times the listing was favorited on its source.
              * @example 12
+             * @example 12
              */
             favorites?: number | null;
             /**
              * @description Flagged as urgent by the publisher.
+             * @example false
              * @example false
              */
             urgent?: boolean | null;
             /**
              * @description Boosted ad slot on the source.
              * @example true
+             * @example true
              */
             boosted?: boolean | null;
             /**
              * @description Highlighted ad slot on the source.
+             * @example true
              * @example true
              */
             highlighted?: boolean | null;
@@ -2084,36 +3079,44 @@ export interface components {
              * @description Id of the Listing.
              * @default
              * @example 019dedb1-ff41-7e5a-bd16-6900cbd8c004
+             * @example 019dedb1-ff41-7e5a-bd16-6900cbd8c004
              */
             id: string;
             /**
              * @description URL to the original listing. Absent when the listing comes from a protected source the caller is not allowed to see.
              * @example https://www.example-realestate.com/listings/019dedb1
+             * @example https://www.example-realestate.com/listings/019dedb1
              */
             url?: string | null;
+            /** @description Source the listing comes from. */
             source?: components["schemas"]["SourceReference"] | null;
             /**
              * @description Date the listing was first published (ISO 8601).
+             * @example 2026-04-15T09:00:00+00:00
              * @example 2026-04-15T09:00:00+00:00
              */
             publishedAt?: string | null;
             /**
              * @description Date the listing expired (ISO 8601).
              * @example 2026-07-15T09:00:00+00:00
+             * @example 2026-07-15T09:00:00+00:00
              */
             expiredAt?: string | null;
             /**
              * @description Last date the listing was observed alive at the source (ISO 8601). Surfaces listing freshness for clients.
+             * @example 2026-05-12T08:30:00+00:00
              * @example 2026-05-12T08:30:00+00:00
              */
             lastSeenAt?: string | null;
             /**
              * @description Variant title, present only when it diverges from property.body.title (different normalized hash).
              * @example Bright 3-room apartment with balcony
+             * @example Bright 3-room apartment with balcony
              */
             title?: string | null;
             /**
              * @description Variant description, present only when it diverges from property.body.description (different normalized hash).
+             * @example Renovated flat on a quiet street, close to transit and shops.
              * @example Renovated flat on a quiet street, close to transit and shops.
              */
             description?: string | null;
@@ -2121,76 +3124,91 @@ export interface components {
              * @description Crawl creation date (ISO 8601).
              * @default
              * @example 2026-04-15T09:05:00+00:00
+             * @example 2026-04-15T09:05:00+00:00
              */
             createdAt: string;
             /**
              * @description Crawl last-update date (ISO 8601).
              * @default
              * @example 2026-05-12T08:30:00+00:00
+             * @example 2026-05-12T08:30:00+00:00
              */
             updatedAt: string;
             /**
              * @description Variant displayed area, present only when it differs from property.area.displayed.
+             * @example 54
              * @example 54
              */
             area?: number | null;
             /**
              * @description Variant rooms count, present only when it differs from property.unit.rooms.
              * @example 3
+             * @example 3
              */
             rooms?: number | null;
             /**
              * @description Variant bedrooms count, present only when it differs from property.unit.bedrooms.
+             * @example 2
              * @example 2
              */
             bedrooms?: number | null;
             /**
              * @description Variant bathrooms count, present only when it differs from property.unit.bathrooms.
              * @example 1
+             * @example 1
              */
             bathrooms?: number | null;
             /**
              * @description Variant shower-rooms count.
+             * @example 1
              * @example 1
              */
             showerRooms?: number | null;
             /**
              * @description Variant WC count.
              * @example 1
+             * @example 1
              */
             wc?: number | null;
             /**
              * @description Variant living-rooms count.
+             * @example 1
              * @example 1
              */
             livingRooms?: number | null;
             /**
              * @description Variant kitchens count.
              * @example 1
+             * @example 1
              */
             kitchens?: number | null;
             /**
              * @description Variant floor number.
+             * @example 2
              * @example 2
              */
             floor?: number | null;
             /**
              * @description Variant last-floor flag.
              * @example false
+             * @example false
              */
             lastFloor?: boolean | null;
             /**
              * @description Variant ground-floor flag.
+             * @example false
              * @example false
              */
             groundFloor?: boolean | null;
             /**
              * @description Variant garden-floor flag.
              * @example false
+             * @example false
              */
             gardenFloor?: boolean | null;
             /**
              * @description Variant condition, present only when it differs from property.unit.condition.
+             * @example TO_RENOVATE
              * @example TO_RENOVATE
              * @enum {string|null}
              */
@@ -2198,85 +3216,102 @@ export interface components {
             /**
              * @description Variant furnished flag.
              * @example false
+             * @example false
              */
             furnished?: boolean | null;
             /**
              * @description Variant disabled-access flag.
+             * @example false
              * @example false
              */
             disabledAccess?: boolean | null;
             /**
              * @description Variant equipped-kitchen flag.
              * @example true
+             * @example true
              */
             equippedKitchen?: boolean | null;
             /**
              * @description Variant fireplace flag.
+             * @example true
              * @example true
              */
             fireplace?: boolean | null;
             /**
              * @description Variant air-conditioning flag.
              * @example false
+             * @example false
              */
             airConditioning?: boolean | null;
             /**
              * @description Variant double-glazing flag.
+             * @example true
              * @example true
              */
             doubleGlazing?: boolean | null;
             /**
              * @description Variant parquet flag.
              * @example true
+             * @example true
              */
             parquet?: boolean | null;
             /**
              * @description Variant balcony flag.
+             * @example true
              * @example true
              */
             balcony?: boolean | null;
             /**
              * @description Variant terrace flag.
              * @example false
+             * @example false
              */
             terrace?: boolean | null;
             /**
              * @description Variant garden flag.
+             * @example false
              * @example false
              */
             garden?: boolean | null;
             /**
              * @description Variant dressing-room flag.
              * @example true
+             * @example true
              */
             dressing?: boolean | null;
             /**
              * @description Variant crossing-apartment flag.
+             * @example true
              * @example true
              */
             crossing?: boolean | null;
             /**
              * @description Variant quiet flag.
              * @example true
+             * @example true
              */
             quiet?: boolean | null;
             /**
              * @description Variant cellar flag.
+             * @example true
              * @example true
              */
             cellar?: boolean | null;
             /**
              * @description Variant basement flag.
              * @example true
+             * @example true
              */
             basement?: boolean | null;
             /**
              * @description Variant storage-room flag.
              * @example true
+             * @example true
              */
             storage?: boolean | null;
             /**
              * @description Variant transaction status, present only when it differs from property.transactionStatus.
+             * @example SOLD
              * @example SOLD
              * @enum {string|null}
              */
@@ -2284,10 +3319,12 @@ export interface components {
             /**
              * @description Variant displayed price, present only when it differs from property.pricing.displayed.
              * @example 420000
+             * @example 420000
              */
             displayedPrice?: number | null;
             /**
              * @description Variant property type (rare, indicates upstream data quality issue).
+             * @example FLAT
              * @example FLAT
              * @enum {string|null}
              */
@@ -2295,9 +3332,11 @@ export interface components {
             /**
              * @description Variant transaction type (rare, indicates upstream data quality issue).
              * @example SELL
+             * @example SELL
              * @enum {string|null}
              */
             transactionType?: "SELL" | "RENT" | null;
+            /** @description Source-side marketing signals (favorite count, urgent/boosted/highlighted flags). */
             marketing?: components["schemas"]["ListingMarketing"] | null;
         };
         /** @description API Platform resource for location autocomplete. */
@@ -2305,10 +3344,12 @@ export interface components {
             /**
              * @description Human-readable display name.
              * @example Paris
+             * @example Paris
              */
             name?: string;
             /**
              * @description Administrative type.
+             * @example MUNICIPALITY
              * @example MUNICIPALITY
              * @enum {string|null}
              */
@@ -2316,15 +3357,18 @@ export interface components {
             /**
              * @description Immediate parent name (e.g. department for a city).
              * @example Paris
+             * @example Paris
              */
             parentName?: string | null;
             /**
              * @description Region name, for disambiguation.
              * @example Île-de-France
+             * @example Île-de-France
              */
             regionName?: string | null;
             /**
              * @description Country the division belongs to.
+             * @example FR
              * @example FR
              * @enum {string|null}
              */
@@ -2332,11 +3376,39 @@ export interface components {
             /**
              * @description Primary postal code.
              * @example 75001
+             * @example 75001
              */
             postalCode?: string | null;
+            /**
+             * @description GeoJSON (RFC 7946) Point for map marker placement.
+             * @example {
+             *       "type": "Point",
+             *       "coordinates": [
+             *         2.3522,
+             *         48.8566
+             *       ]
+             *     }
+             * @example {
+             *       "type": "Point",
+             *       "coordinates": [
+             *         2.3522,
+             *         48.8566
+             *       ]
+             *     }
+             */
             centroid?: components["schemas"]["GeoJsonGeometry"] | null;
             /**
              * @description Additional data (population, hierarchy depth, postal codes, uniqueCode, …).
+             * @example {
+             *       "depth": 3,
+             *       "population": 2102650,
+             *       "postalCodes": [
+             *         "75001",
+             *         "75002",
+             *         "75003"
+             *       ],
+             *       "uniqueCode": "75056"
+             *     }
              * @example {
              *       "depth": 3,
              *       "population": 2102650,
@@ -2355,13 +3427,16 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             id?: string;
         };
         LocationSection: {
+            /** @description GeoJSON (RFC 7946) point. null when no coordinates are known. */
             geometry?: components["schemas"]["GeoJsonGeometry"] | null;
             /**
              * @description Localization accuracy of the coordinates.
+             * @example NEIGHBORHOOD
              * @example NEIGHBORHOOD
              * @enum {string|null}
              */
@@ -2369,37 +3444,46 @@ export interface components {
             /**
              * @description Free-form street address (canonical listing).
              * @example 10 rue Eugène Sue
+             * @example 10 rue Eugène Sue
              */
             address?: string | null;
             /**
              * @description ISO 3166-1 alpha-2 country code applying to every administrative slot below.
              * @example FR
+             * @example FR
              * @enum {string|null}
              */
             countryCode?: "FR" | "BE" | null;
+            /** @description Most specific municipality-level division (commune or arrondissement when known). */
             city?: components["schemas"]["AdministrativeDivisionReference"] | null;
+            /** @description Neighborhood-level division when the listing is qualified down to it. */
             neighborhood?: components["schemas"]["AdministrativeDivisionReference"] | null;
+            /** @description Sub-neighborhood-level division (e.g. IRIS in France) when known. */
             subNeighborhood?: components["schemas"]["AdministrativeDivisionReference"] | null;
         };
         OutdoorArea: {
             /**
              * @description Override for the outdoor unit. Present only when it diverges from area.unit; otherwise inherit the headline.
              * @example SQM
+             * @example SQM
              * @enum {string|null}
              */
             unit?: "SQM" | "SQFT" | "HECTARE" | "ACRE" | null;
             /**
-             * @description Terrace area (max across listings).
+             * @description Terrace area (value most listings report).
+             * @example 12
              * @example 12
              */
             terrace?: number | null;
             /**
-             * @description Balcony area (max across listings).
+             * @description Balcony area (value most listings report).
+             * @example 4.5
              * @example 4.5
              */
             balcony?: number | null;
             /**
-             * @description Garden area (max across listings).
+             * @description Garden area (value most listings report).
+             * @example 80
              * @example 80
              */
             garden?: number | null;
@@ -2408,10 +3492,12 @@ export interface components {
             /**
              * @description Minimum sale price, in cents (greater than or equal).
              * @example 20000000
+             * @example 20000000
              */
             gte?: number | null;
             /**
              * @description Maximum sale price, in cents (less than or equal).
+             * @example 80000000
              * @example 80000000
              */
             lte?: number | null;
@@ -2420,16 +3506,19 @@ export interface components {
             /**
              * @description Charge category (heating, water, …).
              * @example HEATING
+             * @example HEATING
              * @enum {string|null}
              */
             type?: "HEATING" | "WATER" | "MAINTENANCE" | "GARBAGE" | "ELECTRICITY" | "GAS" | "INTERNET" | "OTHER" | null;
             /**
              * @description Charge amount.
              * @example 35
+             * @example 35
              */
             amount?: number | null;
             /**
              * @description Currency of the charge.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -2439,10 +3528,12 @@ export interface components {
             /**
              * @description Rent amount.
              * @example 1450
+             * @example 1450
              */
             amount?: number | null;
             /**
              * @description Currency of the rent.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -2450,11 +3541,13 @@ export interface components {
             /**
              * @description Billing frequency.
              * @example MONTHLY
+             * @example MONTHLY
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
             /**
              * @description Whether charges (utilities, condominium) are included in the rent.
+             * @example true
              * @example true
              */
             includesCharges?: boolean | null;
@@ -2463,15 +3556,18 @@ export interface components {
             /**
              * @description Fee amount.
              * @example 150
+             * @example 150
              */
             amount?: number | null;
             /**
              * @description Fee percentage.
              * @example 5
+             * @example 5
              */
             percentage?: number | null;
             /**
              * @description Currency of the fee.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -2479,146 +3575,416 @@ export interface components {
             /**
              * @description Who pays the fee.
              * @example TENANT
+             * @example TENANT
              * @enum {string|null}
              */
             paidBy?: "BUYER" | "SELLER" | "OWNER" | "TENANT" | null;
         };
         "Pricing.RentalFees": {
+            /** @description Rental charges (utilities, condominium share). */
             charges?: components["schemas"]["Charges"] | null;
+            /** @description Security deposit. */
             deposit?: components["schemas"]["Deposit"] | null;
+            /** @description Rental-side taxes. */
             taxes?: components["schemas"]["Pricing.RentalTaxes"] | null;
+            /** @description Inventory fee (move-in/move-out inventory of fixtures). */
             inventory?: components["schemas"]["Pricing.RentalFee"] | null;
+            /** @description Agency fee for the rental. */
             agency?: components["schemas"]["Pricing.RentalFee"] | null;
         };
         "Pricing.RentalPricing": {
+            /** @description Rent amount + cadence. */
             rent?: components["schemas"]["Pricing.Rent"] | null;
+            /** @description Rental-side fees breakdown. */
             fees?: components["schemas"]["Pricing.RentalFees"] | null;
         };
         "Pricing.RentalTaxes": {
+            /** @description Housing tax (taxe d'habitation in FR). */
             housingTax?: components["schemas"]["HousingTax"] | null;
         };
         "Pricing.SaleFees": {
+            /** @description Agency fee. */
             agency?: components["schemas"]["AgencyFee"] | null;
+            /** @description Legal fee (notary, registration, …). */
             legal?: components["schemas"]["LegalFee"] | null;
+            /** @description Condominium charges (charges de copropriété). */
             condominium?: components["schemas"]["Condominium"] | null;
+            /** @description Sale-side taxes. */
             taxes?: components["schemas"]["Pricing.SaleTaxes"] | null;
         };
         "Pricing.SalePricing": {
             /**
              * @description Net sale price (excluding agency / legal fees).
              * @example 320000
+             * @example 320000
              */
             netPrice?: number | null;
+            /** @description Sale-side fees breakdown. */
             fees?: components["schemas"]["Pricing.SaleFees"] | null;
         };
         "Pricing.SaleTaxes": {
+            /** @description Annual property tax (taxe foncière in FR). */
             propertyTax?: components["schemas"]["PropertyTax"] | null;
         };
         PricingSection: {
             /**
-             * @description Canonical displayed price. Headline price (most frequent, recency tie-break) plus full sale/rental fee breakdowns. Per-field first-non-null across listings; breakdown arrays deduplicated by (type, amount).
+             * @description Canonical displayed price. Headline price (most frequent, recency tie-break) plus full sale/rental fee breakdowns. Each fee is the one most listings report (recency tie-break); breakdown arrays deduplicated by (type, amount).
+             * @example 400000
              * @example 400000
              */
             displayed?: number | null;
             /**
              * @description Majority currency across listings.
              * @example EUR
+             * @example EUR
              * @enum {string|null}
              */
             currency?: "EUR" | "USD" | null;
+            /** @description Full sale-side pricing tree (only emitted when transaction.type is SELL). */
             sale?: components["schemas"]["Pricing.SalePricing"] | null;
+            /** @description Full rental-side pricing tree (only emitted when transaction.type is RENT). */
             rental?: components["schemas"]["Pricing.RentalPricing"] | null;
         };
-        /** @description API Resource for property search. */
-        "PropertySearch.PropertySearchResponse": {
-            items?: components["schemas"]["PropertySearchResult"][];
+        /**
+         * @description Beta. Resolves the exact postal address of a property from what its listings carry, through an
+         *     ordered chain of sources per country. France only for now.
+         */
+        PropertyAddressResolution: {
             /**
-             * @description Total number of matching properties
-             * @default 0
-             * @example 1500
+             * @description How sure the resolution is. EXACT: the certificate reference was found in the registry. HIGH: a certificate matches the characteristics and a coincidence is unlikely. MEDIUM and LOW: a probable address. NONE: no address; address and method are null.
+             * @example HIGH
+             * @example HIGH
+             * @enum {string}
              */
-            totalItems: number;
+            confidence?: "NONE" | "LOW" | "MEDIUM" | "HIGH" | "EXACT";
             /**
-             * @description Whether there are more results available
-             * @default false
-             * @example true
+             * @description The kind of source the address comes from. Null when the confidence is NONE.
+             * @example ENERGY_CERTIFICATE_CHARACTERISTICS
+             * @example ENERGY_CERTIFICATE_CHARACTERISTICS
+             * @enum {string|null}
              */
-            hasNextPage: boolean;
+            method?: "ENERGY_CERTIFICATE_REFERENCE" | "ENERGY_CERTIFICATE_CHARACTERISTICS" | "CADASTRAL_PARCEL" | "REVERSE_GEOCODING" | null;
+            /** @description The resolved address. Null when the confidence is NONE. */
+            address?: (components["schemas"]["ResolvedAddress"] | null) | null;
             /**
-             * @description Opaque continuation token for the next cursor page; null when no more results.
-             * @example eyJsYXN0SWQiOjQyMDAwMCwib2Zmc2V0IjoyMH0=
+             * @description Reference of the energy certificate the address comes from, to check on the public registry. Present for the certificate methods only.
+             * @example 2611E0031228S
+             * @example 2611E0031228S
              */
-            cursor?: string | null;
+            energyCertificateNumber?: ((string | null) | null) | null;
+            /**
+             * @description Version of the address resolution logic that produced this answer. Changes to what it answers are listed in the changelog of the API documentation.
+             * @example 4
+             * @example 4
+             */
+            algorithmVersion?: number;
         };
         "PropertySearch.PropertySearchResponse.jsonapi": {
             data: components["schemas"]["PropertySearchResult.jsonapi"][];
             meta: {
-                /** @example 1500 */
-                totalItems?: number;
-                /** @example true */
-                hasNextPage?: boolean;
-                /** @example eyJsYXN0SWQiOjQyMDAwMCwib2Zmc2V0IjoyMH0= */
+                /**
+                 * @description Total number of matching properties
+                 * @default 0
+                 * @example 1500
+                 * @example 1500
+                 */
+                totalItems: number;
+                /**
+                 * @description Whether there are more results available
+                 * @default false
+                 * @example true
+                 * @example true
+                 */
+                hasNextPage: boolean;
+                /**
+                 * @description Opaque continuation token for the next cursor page; null when no more results.
+                 * @example eyJsYXN0SWQiOjQyMDAwMCwib2Zmc2V0IjoyMH0=
+                 * @example eyJsYXN0SWQiOjQyMDAwMCwib2Zmc2V0IjoyMH0=
+                 */
                 cursor?: string | null;
                 pagination?: {
                     [key: string]: unknown;
                 };
             };
             links: {
-                /** @example /properties */
+                /**
+                 * @example /properties
+                 * @example /properties
+                 */
                 self?: string | null;
             };
-            included?: (components["schemas"]["ListingSection.jsonapi"] | components["schemas"]["PublisherSection.jsonapi"] | components["schemas"]["SourceSection.jsonapi"])[];
-        };
-        "PropertySearch.PropertySearchResult.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
-            id: string;
-            /** @example PropertySearch.PropertySearchResult */
-            type: string;
-            attributes?: components["schemas"]["PropertySection"];
-            relationships?: {
-                listings: {
-                    data: {
-                        /**
-                         * @example Listing
-                         * @enum {string}
-                         */
-                        type: "Listing";
-                        /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
-                        id: string;
-                    }[];
-                };
-                publishers: {
-                    data: {
-                        /**
-                         * @example Publisher
-                         * @enum {string}
-                         */
-                        type: "Publisher";
-                        /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
-                        id: string;
-                    }[];
-                };
-            };
-            links?: {
-                /** @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6 */
-                self?: string | null;
-            };
+            /**
+             * @example [
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Listing",
+             *         "attributes": {
+             *           "url": "https://www.example-realestate.com/listings/019dedb1",
+             *           "publishedAt": "2026-04-15T09:00:00+00:00",
+             *           "expiredAt": "2026-07-15T09:00:00+00:00",
+             *           "lastSeenAt": "2026-05-12T08:30:00+00:00",
+             *           "title": "Bright 3-room apartment with balcony",
+             *           "description": "Renovated flat on a quiet street, close to transit and shops.",
+             *           "createdAt": "2026-04-15T09:05:00+00:00",
+             *           "updatedAt": "2026-05-12T08:30:00+00:00",
+             *           "area": 54,
+             *           "rooms": 3,
+             *           "bedrooms": 2,
+             *           "bathrooms": 1,
+             *           "showerRooms": 1,
+             *           "wc": 1,
+             *           "livingRooms": 1,
+             *           "kitchens": 1,
+             *           "floor": 2,
+             *           "lastFloor": false,
+             *           "groundFloor": false,
+             *           "gardenFloor": false,
+             *           "condition": "TO_RENOVATE",
+             *           "furnished": false,
+             *           "disabledAccess": false,
+             *           "equippedKitchen": true,
+             *           "fireplace": true,
+             *           "airConditioning": false,
+             *           "doubleGlazing": true,
+             *           "parquet": true,
+             *           "balcony": true,
+             *           "terrace": false,
+             *           "garden": false,
+             *           "dressing": true,
+             *           "crossing": true,
+             *           "quiet": true,
+             *           "cellar": true,
+             *           "basement": true,
+             *           "storage": true,
+             *           "transactionStatus": "SOLD",
+             *           "displayedPrice": 420000,
+             *           "propertyType": "FLAT",
+             *           "transactionType": "SELL",
+             *           "marketing": {
+             *             "favorites": 12,
+             *             "urgent": false,
+             *             "boosted": true,
+             *             "highlighted": true
+             *           }
+             *         },
+             *         "relationships": {
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "source": {
+             *             "data": {
+             *               "type": "Source",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Publisher",
+             *         "attributes": {
+             *           "publisherType": "REAL_ESTATE_AGENCY",
+             *           "agencyName": "Foncia Paris 18",
+             *           "professionalCardNumber": "12345",
+             *           "website": "https://www.foncia-paris18.example.com"
+             *         },
+             *         "links": {
+             *           "self": "/publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "PropertyPublisher",
+             *         "attributes": {
+             *           "mandate": "EXCLUSIVE",
+             *           "reference": "REF-AB42",
+             *           "contact": {
+             *             "email": "contact@foncia-paris18.example.com",
+             *             "phone": "+33123456789",
+             *             "profileUrl": "https://www.example-realestate.com/agencies/foncia-paris18"
+             *           }
+             *         },
+             *         "relationships": {
+             *           "property": {
+             *             "data": {
+             *               "type": "Property",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Source",
+             *         "attributes": {
+             *           "slug": "realty-portal"
+             *         },
+             *         "links": {
+             *           "self": "/sources/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       }
+             *     ]
+             * @example [
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Listing",
+             *         "attributes": {
+             *           "url": "https://www.example-realestate.com/listings/019dedb1",
+             *           "publishedAt": "2026-04-15T09:00:00+00:00",
+             *           "expiredAt": "2026-07-15T09:00:00+00:00",
+             *           "lastSeenAt": "2026-05-12T08:30:00+00:00",
+             *           "title": "Bright 3-room apartment with balcony",
+             *           "description": "Renovated flat on a quiet street, close to transit and shops.",
+             *           "createdAt": "2026-04-15T09:05:00+00:00",
+             *           "updatedAt": "2026-05-12T08:30:00+00:00",
+             *           "area": 54,
+             *           "rooms": 3,
+             *           "bedrooms": 2,
+             *           "bathrooms": 1,
+             *           "showerRooms": 1,
+             *           "wc": 1,
+             *           "livingRooms": 1,
+             *           "kitchens": 1,
+             *           "floor": 2,
+             *           "lastFloor": false,
+             *           "groundFloor": false,
+             *           "gardenFloor": false,
+             *           "condition": "TO_RENOVATE",
+             *           "furnished": false,
+             *           "disabledAccess": false,
+             *           "equippedKitchen": true,
+             *           "fireplace": true,
+             *           "airConditioning": false,
+             *           "doubleGlazing": true,
+             *           "parquet": true,
+             *           "balcony": true,
+             *           "terrace": false,
+             *           "garden": false,
+             *           "dressing": true,
+             *           "crossing": true,
+             *           "quiet": true,
+             *           "cellar": true,
+             *           "basement": true,
+             *           "storage": true,
+             *           "transactionStatus": "SOLD",
+             *           "displayedPrice": 420000,
+             *           "propertyType": "FLAT",
+             *           "transactionType": "SELL",
+             *           "marketing": {
+             *             "favorites": 12,
+             *             "urgent": false,
+             *             "boosted": true,
+             *             "highlighted": true
+             *           }
+             *         },
+             *         "relationships": {
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "source": {
+             *             "data": {
+             *               "type": "Source",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Publisher",
+             *         "attributes": {
+             *           "publisherType": "REAL_ESTATE_AGENCY",
+             *           "agencyName": "Foncia Paris 18",
+             *           "professionalCardNumber": "12345",
+             *           "website": "https://www.foncia-paris18.example.com"
+             *         },
+             *         "links": {
+             *           "self": "/publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "PropertyPublisher",
+             *         "attributes": {
+             *           "mandate": "EXCLUSIVE",
+             *           "reference": "REF-AB42",
+             *           "contact": {
+             *             "email": "contact@foncia-paris18.example.com",
+             *             "phone": "+33123456789",
+             *             "profileUrl": "https://www.example-realestate.com/agencies/foncia-paris18"
+             *           }
+             *         },
+             *         "relationships": {
+             *           "property": {
+             *             "data": {
+             *               "type": "Property",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Source",
+             *         "attributes": {
+             *           "slug": "realty-portal"
+             *         },
+             *         "links": {
+             *           "self": "/sources/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       }
+             *     ]
+             */
+            included?: (components["schemas"]["ListingSection.jsonapi"] | components["schemas"]["PublisherSection.jsonapi"] | components["schemas"]["PropertyPublisher.jsonapi"] | components["schemas"]["SourceSection.jsonapi"])[];
         };
         PropertySearchResult: {
             /**
              * @description Id of the property.
              * @default
              * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
+             * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
              */
             id: string;
+            /** @description Aggregated canonical view of the property (carries the property timestamps). */
             property?: components["schemas"]["PropertySection"];
+            /** @description Deduplicated publishers across all listings of the property. */
             publishers?: components["schemas"]["PublisherSection"][];
+            /** @description Per-listing entries, with variants only when they differ from the aggregated property. */
             listings?: components["schemas"]["ListingSection"][];
+            /**
+             * @description Ids you asked for that were merged into this property, which now answers for them. Absent or null when the property was not reached through such an id.
+             * @example [
+             *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
+             *     ]
+             * @example [
+             *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
+             *     ]
+             */
+            mergedFrom?: string[] | null;
         };
         PropertySection: {
             /**
              * @description Crawl creation date (ISO 8601).
              * @default
+             * @example 2025-01-15T10:30:00+00:00
              * @example 2025-01-15T10:30:00+00:00
              */
             createdAt: string;
@@ -2626,16 +3992,19 @@ export interface components {
              * @description Crawl last-update date (ISO 8601).
              * @default
              * @example 2025-06-15T12:00:00+00:00
+             * @example 2025-06-15T12:00:00+00:00
              */
             updatedAt: string;
             /**
              * @description True when every listing of this property is no longer online. Expired properties are hidden from search results unless explicitly requested.
              * @default false
              * @example false
+             * @example false
              */
             expired: boolean;
             /**
              * @description Property type. Most frequent property type across listings; ties resolved by the most recently created listing.
+             * @example FLAT
              * @example FLAT
              * @enum {string|null}
              */
@@ -2643,28 +4012,41 @@ export interface components {
             /**
              * @description Construction status of the property. Most frequent construction status across listings; ties resolved by the most recently created listing.
              * @example OLD
+             * @example OLD
              * @enum {string|null}
              */
             constructionStatus?: "OLD" | "NEW" | "UNDER_CONSTRUCTION" | null;
+            /** @description Transaction summary (type, status, mandate, saleType, availableAt). Bundles transaction type (most frequent), status (strongest by precedence), saleType (most-frequent + recency) and availableAt (most recent). */
             transaction?: components["schemas"]["TransactionSection"] | null;
+            /** @description Aggregated area breakdown — headline displayed surface plus indoor / outdoor / annexes / land sub-sections. Per-dimension value most listings report, surfaces within 2 % counting as one (recency tie-break, largest when no two listings agree): living, total, terrace, balcony, garden, basement, parking, land. displayed is the headline surface — indoor living, fallback to indoor total. */
             area?: components["schemas"]["AreaSection"] | null;
+            /** @description Unit-level facets (counters, floor flags, condition, orientation, feature booleans, parking). Counters take the value most listings report (recency tie-break, max when no two listings agree), logical OR for booleans, union for orientation, most-frequent + recency tie-break for condition. */
             unit?: components["schemas"]["UnitSection"] | null;
+            /** @description Building-level facets (construction year, condition, floors, legal status). Value most listings report for constructionYear / renovationYear / floors / numberOfLots (recency tie-break; min for constructionYear and max for the others when no two listings agree), most-frequent + recency for constructionType / condition / energy, logical OR for legalStatus.underLegalProceedings. */
             building?: components["schemas"]["BuildingSection"] | null;
+            /** @description Residence-level amenities (elevator, pool, caretaker, parking facility, connectivity). Logical OR for boolean amenities, most-frequent + recency for parking.type, value most listings report for parking.spaces (recency tie-break, max when no two listings agree), deduplicated union for connectivity. */
             amenities?: components["schemas"]["AmenitiesSection"] | null;
+            /** @description Canonical body (title + description). Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash. */
             body?: components["schemas"]["BodySection"] | null;
+            /** @description Pricing summary. Headline price (most frequent, recency tie-break) plus full sale/rental fee breakdowns. Each fee is the one most listings report (recency tie-break); breakdown arrays deduplicated by (type, amount). */
             pricing?: components["schemas"]["PricingSection"] | null;
+            /** @description Location summary (geometry + administrative slots). Location built from the most precisely localized listing. Coordinates are the listing geo-point when accuracy is PRECISE or STREET, otherwise the centroid of the deepest qualified administrative division. The administrativeDivisions list reflects that division's root→leaf hierarchy. */
             location?: components["schemas"]["LocationSection"] | null;
+            /** @description Deduplicated pictures across all listings of the property. Union of all listings' pictures, collapsed via perceptual-hash Hamming distance (≤ 10 bits). Canonical per cluster: lowest position, then earliest createdAt. */
             pictures?: components["schemas"]["Listing.Picture"][];
+            /** @description Recent attribute changes across the property listings (price drops, area changes, update markers), newest first. */
             changes?: components["schemas"]["ChangeSection"][];
         };
         PropertyTax: {
             /**
              * @description Tax amount.
              * @example 1200
+             * @example 1200
              */
             amount?: number | null;
             /**
              * @description Currency of the tax.
+             * @example EUR
              * @example EUR
              * @enum {string|null}
              */
@@ -2672,19 +4054,94 @@ export interface components {
             /**
              * @description Billing frequency.
              * @example YEARLY
+             * @example YEARLY
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
             /**
              * @description Who pays the tax.
              * @example OWNER
+             * @example OWNER
              * @enum {string|null}
              */
             paidBy?: "BUYER" | "SELLER" | "OWNER" | "TENANT" | null;
         };
+        /**
+         * @description Points at the property a listing URL belongs to, without its data: reading the property is a second,
+         *     separately priced call. A match costs one result; a URL we do not know answers 404 and costs nothing.
+         */
+        PropertyUrlLookup: {
+            /**
+             * @description Id of the property published at the URL.
+             * @example 019dedb1-ff41-7e5a-bd16-6900cbd8c000
+             * @example 019dedb1-ff41-7e5a-bd16-6900cbd8c000
+             */
+            id?: string;
+            /**
+             * Format: iri-reference
+             * @description The property published at the URL. Fetch it to read its data.
+             * @example /properties/019dedb1-ff41-7e5a-bd16-6900cbd8c000
+             * @example /properties/019dedb1-ff41-7e5a-bd16-6900cbd8c000
+             */
+            property?: string;
+        };
+        /**
+         * @description Points at the property a listing URL belongs to, without its data: reading the property is a second,
+         *     separately priced call. A match costs one result; a URL we do not know answers 404 and costs nothing.
+         */
+        "PropertyUrlLookup.PropertyUrlLookupInput": {
+            /**
+             * Format: uri
+             * @description URL of the listing, as published by its source.
+             * @example https://www.example-realestate.com/listings/019dedb1
+             * @example https://www.example-realestate.com/listings/019dedb1
+             */
+            url: string;
+        };
+        "PropertyUrlLookup.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example PropertyUrlLookup
+             * @example PropertyUrlLookup
+             */
+            type: string;
+            attributes?: Record<string, never>;
+            relationships?: {
+                property?: {
+                    /**
+                     * @example {
+                     *       "type": "Property",
+                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     * @example {
+                     *       "type": "Property",
+                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     */
+                    data?: null | {
+                        /**
+                         * @example Property
+                         * @example Property
+                         */
+                        type: string;
+                        /**
+                         * Format: iri-reference
+                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    };
+                };
+            };
+        };
         Publisher: {
             /**
              * @description Kind of publisher (private individual, agency, etc.).
+             * @example REAL_ESTATE_AGENCY
              * @example REAL_ESTATE_AGENCY
              * @enum {string|null}
              */
@@ -2692,21 +4149,25 @@ export interface components {
             /**
              * @description Display name of the agency.
              * @example Foncia Paris 18
+             * @example Foncia Paris 18
              */
             readonly agencyName?: string | null;
             /**
              * @description Professional card number (e.g. "carte T" in France).
+             * @example 12345
              * @example 12345
              */
             readonly professionalCardNumber?: string | null;
             /**
              * @description Public website of the publisher.
              * @example https://www.foncia-paris18.example.com
+             * @example https://www.foncia-paris18.example.com
              */
             readonly website?: string | null;
             /**
              * Format: uuid
              * @description Public unique identifier (UUID).
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
@@ -2715,27 +4176,65 @@ export interface components {
             /**
              * @description Contact email.
              * @example contact@foncia-paris18.example.com
+             * @example contact@foncia-paris18.example.com
              */
             email?: string | null;
             /**
              * @description Contact phone number.
+             * @example +33123456789
              * @example +33123456789
              */
             phone?: string | null;
             /**
              * @description Public profile URL on the source platform.
              * @example https://www.example-realestate.com/agencies/foncia-paris18
+             * @example https://www.example-realestate.com/agencies/foncia-paris18
              */
             profileUrl?: string | null;
         };
         "Publisher.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example Publisher */
+            /**
+             * @example Publisher
+             * @example Publisher
+             */
             type: string;
-            attributes?: components["schemas"]["Publisher"];
+            attributes?: {
+                /**
+                 * @description Kind of publisher (private individual, agency, etc.).
+                 * @example REAL_ESTATE_AGENCY
+                 * @example REAL_ESTATE_AGENCY
+                 * @enum {string|null}
+                 */
+                readonly publisherType?: "PRIVATE_INDIVIDUAL" | "REAL_ESTATE_AGENCY" | "COMMERCIAL_AGENT" | "MANDATED_AGENT" | "PROFESSIONAL_UNKNOWN" | null;
+                /**
+                 * @description Display name of the agency.
+                 * @example Foncia Paris 18
+                 * @example Foncia Paris 18
+                 */
+                readonly agencyName?: string | null;
+                /**
+                 * @description Professional card number (e.g. "carte T" in France).
+                 * @example 12345
+                 * @example 12345
+                 */
+                readonly professionalCardNumber?: string | null;
+                /**
+                 * @description Public website of the publisher.
+                 * @example https://www.foncia-paris18.example.com
+                 * @example https://www.foncia-paris18.example.com
+                 */
+                readonly website?: string | null;
+            };
             links?: {
-                /** @example /publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                /**
+                 * @example /publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 * @example /publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
                 self?: string | null;
             };
         };
@@ -2744,10 +4243,12 @@ export interface components {
              * @description Id of the Publisher.
              * @default
              * @example 019d0000-0000-7000-8000-000000000001
+             * @example 019d0000-0000-7000-8000-000000000001
              */
             id: string;
             /**
              * @description Publisher type.
+             * @example REAL_ESTATE_AGENCY
              * @example REAL_ESTATE_AGENCY
              * @enum {string|null}
              */
@@ -2755,20 +4256,24 @@ export interface components {
             /**
              * @description Agency name (when applicable).
              * @example Foncia Paris 18
+             * @example Foncia Paris 18
              */
             agencyName?: string | null;
             /**
              * @description Professional card number (FR: carte T).
+             * @example 12345
              * @example 12345
              */
             professionalCardNumber?: string | null;
             /**
              * @description Publisher website.
              * @example https://www.foncia-paris18.example.com
+             * @example https://www.foncia-paris18.example.com
              */
             website?: string | null;
             /**
              * @description Canonical mandate the publisher uses on this property. Publishers grouped by id; mandate and publishing reference are single canonical values (most frequent + tie-break by most recent listing); contact is the most recently verified one.
+             * @example EXCLUSIVE
              * @example EXCLUSIVE
              * @enum {string|null}
              */
@@ -2776,18 +4281,79 @@ export interface components {
             /**
              * @description Canonical reference the publisher uses on this property (the agency's internal listing reference, "publishing reference" in legacy parlance).
              * @example REF-AB42
+             * @example REF-AB42
              */
             reference?: string | null;
+            /** @description Most recently verified contact information for this publisher. */
             contact?: components["schemas"]["Publisher.Contact"] | null;
+        };
+        ResolvedAddress: {
+            /**
+             * @description Full address on one line.
+             * @example 12 Rue des Lilas 69003 Lyon
+             * @example 12 Rue des Lilas 69003 Lyon
+             */
+            label?: string;
+            /**
+             * @description House number, when the address has one.
+             * @example 12
+             * @example 12
+             */
+            houseNumber?: string | null;
+            /**
+             * @description Street name.
+             * @example Rue des Lilas
+             * @example Rue des Lilas
+             */
+            street?: string | null;
+            /**
+             * @description Postal code.
+             * @example 69003
+             * @example 69003
+             */
+            postcode?: string | null;
+            /**
+             * @description National city code (INSEE code in France).
+             * @example 69383
+             * @example 69383
+             */
+            cityCode?: string | null;
+            /**
+             * @description City name.
+             * @example Lyon
+             * @example Lyon
+             */
+            city?: string | null;
+            /**
+             * @description Country of the address.
+             * @example FR
+             * @example FR
+             * @enum {string}
+             */
+            country?: "FR" | "BE";
+            /**
+             * @description Latitude of the address.
+             * @example 45.7578
+             * @example 45.7578
+             */
+            latitude?: number | null;
+            /**
+             * @description Longitude of the address.
+             * @example 4.852
+             * @example 4.852
+             */
+            longitude?: number | null;
         };
         Source: {
             /**
              * @description Display name of the source the listing was crawled from.
              * @example Realty Portal
+             * @example Realty Portal
              */
             name?: string;
             /**
              * @description Primary domain of the source.
+             * @example realty-portal.com
              * @example realty-portal.com
              */
             domain?: string;
@@ -2795,19 +4361,40 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
         };
         "Source.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example Source */
+            /**
+             * @example Source
+             * @example Source
+             */
             type: string;
-            attributes?: components["schemas"]["Source"];
+            attributes?: {
+                /**
+                 * @description Display name of the source the listing was crawled from.
+                 * @example Realty Portal
+                 * @example Realty Portal
+                 */
+                name?: string;
+                /**
+                 * @description Primary domain of the source.
+                 * @example realty-portal.com
+                 * @example realty-portal.com
+                 */
+                domain?: string;
+            };
         };
         SourceCategory: {
             /**
              * @description Human-readable category name.
+             * @example Real Estate Networks
              * @example Real Estate Networks
              */
             name?: string;
@@ -2815,20 +4402,35 @@ export interface components {
              * Format: uuid
              * @description Public unique identifier (UUID).
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
              */
             readonly id?: string;
         };
         "SourceCategory.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example SourceCategory */
+            /**
+             * @example SourceCategory
+             * @example SourceCategory
+             */
             type: string;
-            attributes?: components["schemas"]["SourceCategory"];
+            attributes?: {
+                /**
+                 * @description Human-readable category name.
+                 * @example Real Estate Networks
+                 * @example Real Estate Networks
+                 */
+                name?: string;
+            };
         };
         SourceReference: {
             /**
              * @description Canonical IRI of the Source resource.
              * @default
+             * @example /sources/019d0000-0000-7000-8000-000000000001
              * @example /sources/019d0000-0000-7000-8000-000000000001
              */
             iri: string;
@@ -2836,24 +4438,172 @@ export interface components {
              * @description Source id.
              * @default
              * @example 019d0000-0000-7000-8000-000000000001
+             * @example 019d0000-0000-7000-8000-000000000001
              */
             uuid: string;
             /**
              * @description Source slug.
              * @default
              * @example leboncoin
+             * @example leboncoin
              */
             slug: string;
         };
         "Transaction.TransactionResult.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example Transaction.TransactionResult */
+            /**
+             * @example Transaction.TransactionResult
+             * @example Transaction.TransactionResult
+             */
             type: string;
-            attributes?: components["schemas"]["TransactionResult"];
+            attributes?: {
+                /**
+                 * @description Source the transaction was collected from.
+                 * @default FR_DVF
+                 * @example FR_DVF
+                 * @example FR_DVF
+                 * @enum {string}
+                 */
+                source: "FR_DVF" | "FR_NOTARIES";
+                /**
+                 * @description Stable reference of the transaction in its originating source.
+                 * @default
+                 * @example 2024-123456
+                 * @example 2024-123456
+                 */
+                externalRef: string;
+                /**
+                 * @description Date the mutation was recorded (YYYY-MM-DD).
+                 * @default
+                 * @example 2024-03-15
+                 * @example 2024-03-15
+                 */
+                dateMutation: string;
+                /**
+                 * @description Legal nature of the mutation.
+                 * @default SALE
+                 * @example SALE
+                 * @example SALE
+                 * @enum {string}
+                 */
+                nature: "SALE" | "OFF_PLAN_SALE" | "AUCTION" | "EXPROPRIATION" | "EXCHANGE" | "OTHER";
+                /**
+                 * @description Canonical property type of the transaction.
+                 * @default FLAT
+                 * @example FLAT
+                 * @example FLAT
+                 * @enum {string}
+                 */
+                propertyType: "FLAT" | "HOUSE" | "BUILDING" | "PARKING" | "OFFICE" | "LAND" | "SHOP" | "COMMERCIAL_PREMISES";
+                /** @description Price block. */
+                price?: components["schemas"]["TransactionPrice"];
+                /** @description Area block. */
+                areas?: components["schemas"]["TransactionAreas"];
+                /** @description Location block. */
+                location?: components["schemas"]["TransactionLocation"];
+                /**
+                 * @description Structured address parts, when known.
+                 * @example {
+                 *       "streetNumber": "10",
+                 *       "streetName": "Rue de Rivoli"
+                 *     }
+                 * @example {
+                 *       "streetNumber": "10",
+                 *       "streetName": "Rue de Rivoli"
+                 *     }
+                 */
+                address?: {
+                    [key: string]: unknown;
+                };
+                /**
+                 * @description Cadastral parcel reference, when known.
+                 * @example 75101000AB0001
+                 * @example 75101000AB0001
+                 */
+                cadastralRef?: string | null;
+                /**
+                 * @description Breakdown of the lots that make up the mutation.
+                 * @example [
+                 *       {
+                 *         "role": "MAIN",
+                 *         "kind": "FLAT"
+                 *       }
+                 *     ]
+                 * @example [
+                 *       {
+                 *         "role": "MAIN",
+                 *         "kind": "FLAT"
+                 *       }
+                 *     ]
+                 */
+                lots?: {
+                    [key: string]: unknown;
+                }[];
+                /**
+                 * @description Building-level characteristics, when known.
+                 * @example {
+                 *       "constructionEra": "1948-1974",
+                 *       "elevator": true
+                 *     }
+                 * @example {
+                 *       "constructionEra": "1948-1974",
+                 *       "elevator": true
+                 *     }
+                 */
+                building?: {
+                    [key: string]: unknown;
+                };
+                /**
+                 * @description Amenity flags, when known.
+                 * @example {
+                 *       "balcony": true,
+                 *       "cellar": true
+                 *     }
+                 * @example {
+                 *       "balcony": true,
+                 *       "cellar": true
+                 *     }
+                 */
+                amenities?: {
+                    [key: string]: unknown;
+                };
+                /**
+                 * @description Creation timestamp (ISO 8601).
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                createdAt?: string | null;
+                /**
+                 * @description Last update timestamp (ISO 8601).
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                updatedAt?: string | null;
+                /** @description Present when a duplicate from another source was reconciled into this row. */
+                matched?: components["schemas"]["TransactionMatch"] | null;
+                /**
+                 * @description Raw source payload. Returned on the item endpoint only, and only to authorized service accounts.
+                 * @example {
+                 *       "id_mutation": "2024-123456",
+                 *       "type_local": "Appartement"
+                 *     }
+                 * @example {
+                 *       "id_mutation": "2024-123456",
+                 *       "type_local": "Appartement"
+                 *     }
+                 */
+                sourcePayload?: {
+                    [key: string]: unknown;
+                };
+            };
         };
         /** @description Public API for closed real-estate transactions. */
         "Transaction.TransactionSearchRequestInput": {
+            /** @description Filter by mutation date range (inclusive). */
             dateMutation?: components["schemas"]["DateMutationRange"] | null;
             /**
              * @description Property types the transaction must match (any of the listed types).
@@ -2861,12 +4611,18 @@ export interface components {
              *       "FLAT",
              *       "HOUSE"
              *     ]
+             * @example [
+             *       "FLAT",
+             *       "HOUSE"
+             *     ]
              */
             propertyType?: ("FLAT" | "HOUSE" | "BUILDING" | "PARKING" | "OFFICE" | "LAND" | "SHOP" | "COMMERCIAL_PREMISES")[] | null;
+            /** @description Filter by sale price range, in cents. */
             priceAmount?: components["schemas"]["PriceAmountRange"] | null;
             /**
              * Format: uuid
              * @description City id to restrict results to.
+             * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
              * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
              */
             city?: string | null;
@@ -2874,11 +4630,13 @@ export interface components {
              * Format: uuid
              * @description District id to restrict results to.
              * @example 019476e2-9a2b-7c4d-8e5f-2a3b4c5d6e7f
+             * @example 019476e2-9a2b-7c4d-8e5f-2a3b4c5d6e7f
              */
             district?: string | null;
             /**
              * Format: uuid
              * @description Neighborhood id to restrict results to.
+             * @example 019476e2-ab3c-7d5e-9f60-3b4c5d6e7f80
              * @example 019476e2-ab3c-7d5e-9f60-3b4c5d6e7f80
              */
             neighborhood?: string | null;
@@ -2911,44 +4669,194 @@ export interface components {
              *         ]
              *       ]
              *     }
+             * @example {
+             *       "type": "Polygon",
+             *       "coordinates": [
+             *         [
+             *           [
+             *             2.32,
+             *             48.85
+             *           ],
+             *           [
+             *             2.36,
+             *             48.85
+             *           ],
+             *           [
+             *             2.36,
+             *             48.87
+             *           ],
+             *           [
+             *             2.32,
+             *             48.87
+             *           ],
+             *           [
+             *             2.32,
+             *             48.85
+             *           ]
+             *         ]
+             *       ]
+             *     }
              */
             geoshape?: {
                 [key: string]: unknown;
             };
+            /** @description Cursor pagination controls. */
             page?: components["schemas"]["TransactionPage"] | null;
         };
         "Transaction.TransactionSearchRequestInput.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id?: string;
-            /** @example Transaction.TransactionSearchRequestInput */
+            /**
+             * @example Transaction.TransactionSearchRequestInput
+             * @example Transaction.TransactionSearchRequestInput
+             */
             type: string;
-            attributes?: components["schemas"]["Transaction.TransactionSearchRequestInput"];
+            attributes?: {
+                /** @description Filter by mutation date range (inclusive). */
+                dateMutation?: components["schemas"]["DateMutationRange"] | null;
+                /**
+                 * @description Property types the transaction must match (any of the listed types).
+                 * @example [
+                 *       "FLAT",
+                 *       "HOUSE"
+                 *     ]
+                 * @example [
+                 *       "FLAT",
+                 *       "HOUSE"
+                 *     ]
+                 */
+                propertyType?: ("FLAT" | "HOUSE" | "BUILDING" | "PARKING" | "OFFICE" | "LAND" | "SHOP" | "COMMERCIAL_PREMISES")[] | null;
+                /** @description Filter by sale price range, in cents. */
+                priceAmount?: components["schemas"]["PriceAmountRange"] | null;
+                /**
+                 * Format: uuid
+                 * @description City id to restrict results to.
+                 * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
+                 * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
+                 */
+                city?: string | null;
+                /**
+                 * Format: uuid
+                 * @description District id to restrict results to.
+                 * @example 019476e2-9a2b-7c4d-8e5f-2a3b4c5d6e7f
+                 * @example 019476e2-9a2b-7c4d-8e5f-2a3b4c5d6e7f
+                 */
+                district?: string | null;
+                /**
+                 * Format: uuid
+                 * @description Neighborhood id to restrict results to.
+                 * @example 019476e2-ab3c-7d5e-9f60-3b4c5d6e7f80
+                 * @example 019476e2-ab3c-7d5e-9f60-3b4c5d6e7f80
+                 */
+                neighborhood?: string | null;
+                /**
+                 * @description GeoJSON polygon; only transactions whose point falls inside the polygon are returned.
+                 * @example {
+                 *       "type": "Polygon",
+                 *       "coordinates": [
+                 *         [
+                 *           [
+                 *             2.32,
+                 *             48.85
+                 *           ],
+                 *           [
+                 *             2.36,
+                 *             48.85
+                 *           ],
+                 *           [
+                 *             2.36,
+                 *             48.87
+                 *           ],
+                 *           [
+                 *             2.32,
+                 *             48.87
+                 *           ],
+                 *           [
+                 *             2.32,
+                 *             48.85
+                 *           ]
+                 *         ]
+                 *       ]
+                 *     }
+                 * @example {
+                 *       "type": "Polygon",
+                 *       "coordinates": [
+                 *         [
+                 *           [
+                 *             2.32,
+                 *             48.85
+                 *           ],
+                 *           [
+                 *             2.36,
+                 *             48.85
+                 *           ],
+                 *           [
+                 *             2.36,
+                 *             48.87
+                 *           ],
+                 *           [
+                 *             2.32,
+                 *             48.87
+                 *           ],
+                 *           [
+                 *             2.32,
+                 *             48.85
+                 *           ]
+                 *         ]
+                 *       ]
+                 *     }
+                 */
+                geoshape?: {
+                    [key: string]: unknown;
+                };
+                /** @description Cursor pagination controls. */
+                page?: components["schemas"]["TransactionPage"] | null;
+            };
         };
         /** @description Public API for closed real-estate transactions. */
         "Transaction.TransactionSearchResponse": {
+            /** @description Transactions matching the search on this page. */
             data?: components["schemas"]["TransactionResult"][];
+            /** @description Pagination metadata. */
             meta?: components["schemas"]["TransactionSearchMeta"];
         };
         "Transaction.TransactionSearchResponse.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example Transaction.TransactionSearchResponse */
+            /**
+             * @example Transaction.TransactionSearchResponse
+             * @example Transaction.TransactionSearchResponse
+             */
             type: string;
-            attributes?: components["schemas"]["Transaction.TransactionSearchResponse"];
+            attributes?: {
+                /** @description Transactions matching the search on this page. */
+                data?: components["schemas"]["TransactionResult"][];
+                /** @description Pagination metadata. */
+                meta?: components["schemas"]["TransactionSearchMeta"];
+            };
         };
         TransactionAreas: {
             /**
              * @description Living area of the main lot, in square metres.
+             * @example 65
              * @example 65
              */
             livingAreaSqm?: number | null;
             /**
              * @description Land area, in square metres.
              * @example 200
+             * @example 200
              */
             landAreaSqm?: number | null;
             /**
              * @description Number of rooms.
+             * @example 3
              * @example 3
              */
             roomsCount?: number | null;
@@ -2958,11 +4866,13 @@ export interface components {
              * @description Longitude in decimal degrees.
              * @default 0
              * @example 2.3522
+             * @example 2.3522
              */
             lon: number;
             /**
              * @description Latitude in decimal degrees.
              * @default 0
+             * @example 48.8566
              * @example 48.8566
              */
             lat: number;
@@ -2971,18 +4881,22 @@ export interface components {
             /**
              * @description City id, when resolved.
              * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
+             * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
              */
             cityId?: string | null;
             /**
              * @description District id, when resolved.
+             * @example 019476e2-9a2b-7c4d-8e5f-2a3b4c5d6e7f
              * @example 019476e2-9a2b-7c4d-8e5f-2a3b4c5d6e7f
              */
             districtId?: string | null;
             /**
              * @description Neighborhood id, when resolved.
              * @example 019476e2-ab3c-7d5e-9f60-3b4c5d6e7f80
+             * @example 019476e2-ab3c-7d5e-9f60-3b4c5d6e7f80
              */
             neighborhoodId?: string | null;
+            /** @description Geographic point, when known. */
             geoPoint?: components["schemas"]["TransactionGeoPoint"] | null;
         };
         TransactionMatch: {
@@ -2990,16 +4904,22 @@ export interface components {
              * @description Id of the suppressed duplicate transaction this row was reconciled with.
              * @default
              * @example 019476e2-cd4e-7f70-a180-4c5d6e7f8091
+             * @example 019476e2-cd4e-7f70-a180-4c5d6e7f8091
              */
             withTransactionId: string;
             /**
              * @description Confidence score of the match, from 0 to 1.
              * @default 0
              * @example 0.95
+             * @example 0.95
              */
             score: number;
             /**
              * @description Fields that were filled from the suppressed duplicate.
+             * @example [
+             *       "building",
+             *       "amenities"
+             *     ]
              * @example [
              *       "building",
              *       "amenities"
@@ -3011,10 +4931,12 @@ export interface components {
             /**
              * @description Opaque cursor returned as meta.nextCursor by the previous response. Omit for the first page.
              * @example eyJ1dWlkIjoiMDE5NDc2ZTItOGQxZi03YTNjLTliMmUtMWY2YTJjNGU4YjkwIiwiZGF0ZSI6IjIwMjQtMDMtMTUifQ==
+             * @example eyJ1dWlkIjoiMDE5NDc2ZTItOGQxZi03YTNjLTliMmUtMWY2YTJjNGU4YjkwIiwiZGF0ZSI6IjIwMjQtMDMtMTUifQ==
              */
             cursor?: string | null;
             /**
              * @description Number of items per page, from 1 to 100. Defaults to 20.
+             * @example 20
              * @example 20
              */
             size?: number | null;
@@ -3024,17 +4946,20 @@ export interface components {
              * @description Sale price in the smallest currency unit (cents for euros).
              * @default 0
              * @example 45000000
+             * @example 45000000
              */
             amountCents: number;
             /**
              * @description Currency of the sale price.
              * @default EUR
              * @example EUR
+             * @example EUR
              * @enum {string}
              */
             currency: "EUR" | "USD";
             /**
              * @description Price per square metre of living area, in cents. Null when it cannot be derived.
+             * @example 692307
              * @example 692307
              */
             pricePerSqmCents?: number | null;
@@ -3044,18 +4969,21 @@ export interface components {
              * @description Transaction id.
              * @default
              * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
+             * @example 019476e2-8d1f-7a3c-9b2e-1f6a2c4e8b90
              */
             id: string;
             /**
              * @description Source the transaction was collected from.
-             * @default DVF
-             * @example DVF
+             * @default FR_DVF
+             * @example FR_DVF
+             * @example FR_DVF
              * @enum {string}
              */
-            source: "DVF" | "NOTAIRES_FR";
+            source: "FR_DVF" | "FR_NOTARIES";
             /**
              * @description Stable reference of the transaction in its originating source.
              * @default
+             * @example 2024-123456
              * @example 2024-123456
              */
             externalRef: string;
@@ -3063,11 +4991,13 @@ export interface components {
              * @description Date the mutation was recorded (YYYY-MM-DD).
              * @default
              * @example 2024-03-15
+             * @example 2024-03-15
              */
             dateMutation: string;
             /**
              * @description Legal nature of the mutation.
              * @default SALE
+             * @example SALE
              * @example SALE
              * @enum {string}
              */
@@ -3076,14 +5006,22 @@ export interface components {
              * @description Canonical property type of the transaction.
              * @default FLAT
              * @example FLAT
+             * @example FLAT
              * @enum {string}
              */
             propertyType: "FLAT" | "HOUSE" | "BUILDING" | "PARKING" | "OFFICE" | "LAND" | "SHOP" | "COMMERCIAL_PREMISES";
+            /** @description Price block. */
             price?: components["schemas"]["TransactionPrice"];
+            /** @description Area block. */
             areas?: components["schemas"]["TransactionAreas"];
+            /** @description Location block. */
             location?: components["schemas"]["TransactionLocation"];
             /**
              * @description Structured address parts, when known.
+             * @example {
+             *       "streetNumber": "10",
+             *       "streetName": "Rue de Rivoli"
+             *     }
              * @example {
              *       "streetNumber": "10",
              *       "streetName": "Rue de Rivoli"
@@ -3095,10 +5033,17 @@ export interface components {
             /**
              * @description Cadastral parcel reference, when known.
              * @example 75101000AB0001
+             * @example 75101000AB0001
              */
             cadastralRef?: string | null;
             /**
              * @description Breakdown of the lots that make up the mutation.
+             * @example [
+             *       {
+             *         "role": "MAIN",
+             *         "kind": "FLAT"
+             *       }
+             *     ]
              * @example [
              *       {
              *         "role": "MAIN",
@@ -3115,12 +5060,20 @@ export interface components {
              *       "constructionEra": "1948-1974",
              *       "elevator": true
              *     }
+             * @example {
+             *       "constructionEra": "1948-1974",
+             *       "elevator": true
+             *     }
              */
             building?: {
                 [key: string]: unknown;
             };
             /**
              * @description Amenity flags, when known.
+             * @example {
+             *       "balcony": true,
+             *       "cellar": true
+             *     }
              * @example {
              *       "balcony": true,
              *       "cellar": true
@@ -3132,16 +5085,23 @@ export interface components {
             /**
              * @description Creation timestamp (ISO 8601).
              * @example 2026-01-15T10:30:00+00:00
+             * @example 2026-01-15T10:30:00+00:00
              */
             createdAt?: string | null;
             /**
              * @description Last update timestamp (ISO 8601).
              * @example 2026-01-15T10:30:00+00:00
+             * @example 2026-01-15T10:30:00+00:00
              */
             updatedAt?: string | null;
+            /** @description Present when a duplicate from another source was reconciled into this row. */
             matched?: components["schemas"]["TransactionMatch"] | null;
             /**
              * @description Raw source payload. Returned on the item endpoint only, and only to authorized service accounts.
+             * @example {
+             *       "id_mutation": "2024-123456",
+             *       "type_local": "Appartement"
+             *     }
              * @example {
              *       "id_mutation": "2024-123456",
              *       "type_local": "Appartement"
@@ -3156,10 +5116,12 @@ export interface components {
              * @description Number of transactions returned on this page.
              * @default 0
              * @example 20
+             * @example 20
              */
             count: number;
             /**
              * @description Cursor for the next page. Send it back as page.cursor in the next request. Null when there are no more results.
+             * @example eyJ1dWlkIjoiMDE5NDc2ZTItOGQxZi03YTNjLTliMmUtMWY2YTJjNGU4YjkwIiwiZGF0ZSI6IjIwMjQtMDMtMTUifQ==
              * @example eyJ1dWlkIjoiMDE5NDc2ZTItOGQxZi03YTNjLTliMmUtMWY2YTJjNGU4YjkwIiwiZGF0ZSI6IjIwMjQtMDMtMTUifQ==
              */
             nextCursor?: string | null;
@@ -3168,11 +5130,13 @@ export interface components {
             /**
              * @description Transaction type (sell / rent). Most frequent across listings.
              * @example SELL
+             * @example SELL
              * @enum {string|null}
              */
             type?: "SELL" | "RENT" | null;
             /**
              * @description Strongest transaction status across listings (AVAILABLE > UNDER_OFFER > SOLD/RENTED > WITHDRAWN).
+             * @example AVAILABLE
              * @example AVAILABLE
              * @enum {string|null}
              */
@@ -3180,11 +5144,13 @@ export interface components {
             /**
              * @description Canonical sale type (standard, life annuity, …). Most-frequent + recency tie-break.
              * @example STANDARD
+             * @example STANDARD
              * @enum {string|null}
              */
             saleType?: "STANDARD" | "LIFE_ANNUITY" | null;
             /**
              * @description ISO 8601 date from which the property is available. Most recent date reported across listings.
+             * @example 2026-06-01
              * @example 2026-06-01
              */
             availableAt?: string | null;
@@ -3193,16 +5159,19 @@ export interface components {
             /**
              * @description Energy rating letter (A–G).
              * @example C
+             * @example C
              * @enum {string|null}
              */
             rating?: "A" | "B" | "C" | "D" | "E" | "F" | "G" | null;
             /**
              * @description Numeric score value (in the corresponding unit).
              * @example 120
+             * @example 120
              */
             value?: number | null;
             /**
              * @description Measurement unit.
+             * @example KWH_EP_PER_SQM_YEAR
              * @example KWH_EP_PER_SQM_YEAR
              * @enum {string|null}
              */
@@ -3212,11 +5181,13 @@ export interface components {
             /**
              * @description Heating system.
              * @example BOILER
+             * @example BOILER
              * @enum {string|null}
              */
             system?: "BOILER" | "HEAT_PUMP" | "RADIATOR" | "FLOOR_HEATING" | "SOLAR_THERMAL" | "WOOD_STOVE" | "AIR_CONDITIONING" | "ELECTRIC_HEATER" | null;
             /**
              * @description Energy carrier.
+             * @example GAS
              * @example GAS
              * @enum {string|null}
              */
@@ -3224,20 +5195,24 @@ export interface components {
             /**
              * @description Whether the heating is collective.
              * @example true
+             * @example true
              */
             collective?: boolean | null;
         };
         "Unit.Parking": {
             /**
-             * @description Total number of parking spots (max across listings).
+             * @description Total number of parking spots (value most listings report).
+             * @example 2
              * @example 2
              */
             total?: number | null;
+            /** @description Deduplicated parking spots sorted by type name then box flag. */
             spots?: components["schemas"]["Unit.ParkingSpot"][];
         };
         "Unit.ParkingSpot": {
             /**
              * @description Parking type.
+             * @example GARAGE
              * @example GARAGE
              * @enum {string|null}
              */
@@ -3246,6 +5221,7 @@ export interface components {
              * @description Whether the spot is a closed box.
              * @default false
              * @example false
+             * @example false
              */
             box: boolean;
         };
@@ -3253,16 +5229,19 @@ export interface components {
             /**
              * @description Diagnostic type (DPE, audit, …).
              * @example DPE
+             * @example DPE
              * @enum {string|null}
              */
             type?: "DPE" | null;
             /**
              * @description Diagnostic date (ISO 8601).
              * @example 2024-06-15
+             * @example 2024-06-15
              */
             date?: string | null;
             /**
              * @description Regulatory standard the diagnostic follows; the grade scale and the method differ per standard (FR_DPE_2006 before 1 July 2021, FR_DPE_2021 from that date). Absent when the source did not state it.
+             * @example FR_DPE_2021
              * @example FR_DPE_2021
              * @enum {string|null}
              */
@@ -3270,15 +5249,29 @@ export interface components {
             /**
              * @description Revision of the data model printed on the certificate (ADEME version_dpe for a DPE). Free text; does not identify the standard.
              * @example 2.4
+             * @example 2.4
              */
             methodVersion?: string | null;
             /**
              * @description Certificate identifier at the issuing registry (ADEME number for a DPE).
              * @example 2421E1234567X
+             * @example 2421E1234567X
              */
             reference?: string | null;
             /**
              * @description Energy scores keyed by EnergyScoreType name (ENERGY_CONSUMPTION, CARBON_EMISSIONS).
+             * @example {
+             *       "ENERGY_CONSUMPTION": {
+             *         "rating": "D",
+             *         "value": 245,
+             *         "unit": "KWH_EP_PER_SQM_YEAR"
+             *       },
+             *       "CARBON_EMISSIONS": {
+             *         "rating": "D",
+             *         "value": 35,
+             *         "unit": "KG_CO2E_PER_SQM_YEAR"
+             *       }
+             *     }
              * @example {
              *       "ENERGY_CONSUMPTION": {
              *         "rating": "D",
@@ -3297,61 +5290,73 @@ export interface components {
             };
         };
         UnitEnergy: {
+            /** @description Heating systems / carriers reported on the canonical listing. */
             heating?: components["schemas"]["Unit.Heating"][];
         };
         UnitSection: {
             /**
-             * @description Number of rooms (max across listings).
+             * @description Number of rooms (value most listings report).
+             * @example 3
              * @example 3
              */
             rooms?: number | null;
             /**
-             * @description Number of bedrooms (max across listings).
+             * @description Number of bedrooms (value most listings report).
+             * @example 2
              * @example 2
              */
             bedrooms?: number | null;
             /**
-             * @description Number of bathrooms (max across listings).
+             * @description Number of bathrooms (value most listings report).
+             * @example 1
              * @example 1
              */
             bathrooms?: number | null;
             /**
-             * @description Number of shower rooms (max across listings).
+             * @description Number of shower rooms (value most listings report).
+             * @example 1
              * @example 1
              */
             showerRooms?: number | null;
             /**
-             * @description Number of WC (max across listings).
+             * @description Number of WC (value most listings report).
+             * @example 1
              * @example 1
              */
             wc?: number | null;
             /**
-             * @description Number of living rooms (max across listings).
+             * @description Number of living rooms (value most listings report).
+             * @example 1
              * @example 1
              */
             livingRooms?: number | null;
             /**
-             * @description Number of kitchens (max across listings).
+             * @description Number of kitchens (value most listings report).
+             * @example 1
              * @example 1
              */
             kitchens?: number | null;
             /**
-             * @description Floor number (max across listings).
+             * @description Floor number (value most listings report).
+             * @example 2
              * @example 2
              */
             floor?: number | null;
             /**
              * @description On the last floor of the building.
              * @example false
+             * @example false
              */
             lastFloor?: boolean | null;
             /**
              * @description On the ground floor.
              * @example false
+             * @example false
              */
             groundFloor?: boolean | null;
             /**
              * @description On the garden floor.
+             * @example false
              * @example false
              */
             gardenFloor?: boolean | null;
@@ -3360,10 +5365,14 @@ export interface components {
              * @example [
              *       "SOUTH"
              *     ]
+             * @example [
+             *       "SOUTH"
+             *     ]
              */
             orientation?: ("NORTH" | "NORTH_EAST" | "EAST" | "SOUTH_EAST" | "SOUTH" | "SOUTH_WEST" | "WEST" | "NORTH_WEST")[];
             /**
              * @description Canonical condition (most frequent across listings, recency tie-break).
+             * @example GOOD
              * @example GOOD
              * @enum {string|null}
              */
@@ -3371,113 +5380,175 @@ export interface components {
             /**
              * @description Furnished.
              * @example false
+             * @example false
              */
             furnished?: boolean | null;
             /**
              * @description Disabled access.
+             * @example false
              * @example false
              */
             disabledAccess?: boolean | null;
             /**
              * @description Equipped kitchen.
              * @example true
+             * @example true
              */
             equippedKitchen?: boolean | null;
             /**
              * @description Fireplace.
+             * @example true
              * @example true
              */
             fireplace?: boolean | null;
             /**
              * @description Air conditioning.
              * @example false
+             * @example false
              */
             airConditioning?: boolean | null;
             /**
              * @description Double glazing.
+             * @example true
              * @example true
              */
             doubleGlazing?: boolean | null;
             /**
              * @description Parquet flooring.
              * @example true
+             * @example true
              */
             parquet?: boolean | null;
             /**
              * @description Balcony.
+             * @example true
              * @example true
              */
             balcony?: boolean | null;
             /**
              * @description Terrace.
              * @example false
+             * @example false
              */
             terrace?: boolean | null;
             /**
              * @description Garden.
+             * @example false
              * @example false
              */
             garden?: boolean | null;
             /**
              * @description Dressing room.
              * @example true
+             * @example true
              */
             dressing?: boolean | null;
             /**
              * @description Crossing apartment.
+             * @example true
              * @example true
              */
             crossing?: boolean | null;
             /**
              * @description Quiet location.
              * @example true
+             * @example true
              */
             quiet?: boolean | null;
             /**
              * @description Cellar.
+             * @example true
              * @example true
              */
             cellar?: boolean | null;
             /**
              * @description Basement.
              * @example true
+             * @example true
              */
             basement?: boolean | null;
             /**
              * @description Storage room.
              * @example true
+             * @example true
              */
             storage?: boolean | null;
+            /** @description Parking facet — total count and individual spots with type / box flag. */
             parking?: components["schemas"]["Unit.Parking"] | null;
+            /** @description Canonical regulatory diagnostic (DPE / audit) — most-filled across listings, recency tie-break. */
             diagnostic?: components["schemas"]["UnitDiagnostic"] | null;
+            /** @description Energy equipment (heating systems / carriers) attached to the canonical diagnostic's source listing. */
             energy?: components["schemas"]["UnitEnergy"] | null;
         };
         AndNode: {
+            /** @description Child nodes — all must match. */
             and?: components["schemas"]["CriteriaNode"][];
         };
         /** @description A search criteria node. Exactly one of three shapes: a flat Filters object (most common), {"and": [...]} requiring all children to match, or {"or": [...]} requiring at least one child to match. */
         CriteriaNode: components["schemas"]["Filters"] | components["schemas"]["AndNode"] | components["schemas"]["OrNode"];
         OrNode: {
+            /** @description Child nodes — at least one must match. */
             or?: components["schemas"]["CriteriaNode"][];
         };
         Filters: {
+            /** @description Property-facet filters (type, transaction, pricing, areas, locations, unit, building, amenities, body). */
             property?: components["schemas"]["PropertyFacetFilters"] | null;
+            /** @description Publisher filters (type, mandate, references, contact-presence) — all clauses apply to the SAME publisher (intra-publisher semantic). For cross-publisher independent matching, combine multiple publisher blocks via and: at the criteria tree level. */
             publisher?: components["schemas"]["PublisherFilters"] | null;
+            /** @description Listing-level filters targeting the nested listings.* (url, sources, marketing flags) — all clauses apply to the SAME listing. */
             listings?: components["schemas"]["ListingsFilters"] | null;
+            /** @description Date-range filters on createdAt and updatedAt. */
             dates?: components["schemas"]["DatesFilters"] | null;
+            /** @description Attribute-change filters (changed attribute, signed variation range, occurrence date) — all clauses apply to the SAME change. For independent changes (e.g. a price drop AND an area drop), combine multiple changes blocks via and: at the criteria tree level. */
             changes?: components["schemas"]["ChangesFilters"] | null;
         };
         PropertyFacetFilters: {
+            /** @description Property id filter (in / nin). Targets the id of each result. Not available on alerts. */
+            id?: components["schemas"]["PropertyIdFilters"] | null;
+            /** @description Property-type filter (in / nin). Targets property.propertyType. */
             type?: components["schemas"]["PropertyTypeFilters"] | null;
+            /** @description Construction-status filter (in / nin / inOrMissing). Omitting any construction-status filter across the whole criteria restricts a search or an alert to OLD or not-yet-qualified properties by default. */
             constructionStatus?: components["schemas"]["ConstructionStatusFilters"] | null;
+            /** @description Transaction facet filter (type). */
             transaction?: components["schemas"]["TransactionFilters"] | null;
+            /** @description Pricing facet filters (displayed, pricePerArea, sale + rental subtrees). */
             pricing?: components["schemas"]["PricingFilters"] | null;
+            /** @description Area filters (area.displayed headline plus land). */
             areas?: components["schemas"]["AreasFilters"] | null;
+            /** @description Geographic filter (in / nin sets, accuracy). */
             locations?: components["schemas"]["LocationFilters"] | null;
+            /** @description Unit-interior filters (features, rooms, bedrooms, diagnostic, energy). */
             unit?: components["schemas"]["UnitFilters"] | null;
+            /** @description Building filters (construction year, renovation year, number of lots, type, condition, energy). */
             building?: components["schemas"]["BuildingFilters"] | null;
+            /** @description Amenity feature filters (in / nin / inOrMissing). */
             amenities?: components["schemas"]["AmenityFilters"] | null;
+            /** @description Free-text body filters (title, description). */
             body?: components["schemas"]["BodyFilters"] | null;
+        };
+        PropertyIdFilters: {
+            /**
+             * @description Property ids to return, up to 100. The default filters still apply, so an expired, new-build or price-incoherent property is returned only when the criteria ask for it.
+             * @example [
+             *       "019e1a00-0000-7000-8000-000000000001",
+             *       "019e1a00-0000-7000-8000-000000000002"
+             *     ]
+             * @example [
+             *       "019e1a00-0000-7000-8000-000000000001",
+             *       "019e1a00-0000-7000-8000-000000000002"
+             *     ]
+             */
+            in?: string[];
+            /**
+             * @description Property ids to leave out of the results, up to 100.
+             * @example [
+             *       "019e1a00-0000-7000-8000-000000000003"
+             *     ]
+             * @example [
+             *       "019e1a00-0000-7000-8000-000000000003"
+             *     ]
+             */
+            nin?: string[];
         };
         PropertyTypeFilters: {
             /**
@@ -3486,10 +5557,17 @@ export interface components {
              *       "FLAT",
              *       "HOUSE"
              *     ]
+             * @example [
+             *       "FLAT",
+             *       "HOUSE"
+             *     ]
              */
             in?: ("FLAT" | "HOUSE" | "BUILDING" | "PARKING" | "OFFICE" | "LAND" | "SHOP" | "COMMERCIAL_PREMISES")[];
             /**
              * @description Property types the result must NOT match.
+             * @example [
+             *       "PARKING"
+             *     ]
              * @example [
              *       "PARKING"
              *     ]
@@ -3503,10 +5581,17 @@ export interface components {
              *       "NEW",
              *       "UNDER_CONSTRUCTION"
              *     ]
+             * @example [
+             *       "NEW",
+             *       "UNDER_CONSTRUCTION"
+             *     ]
              */
             in?: ("OLD" | "NEW" | "UNDER_CONSTRUCTION")[];
             /**
              * @description Construction statuses the property must NOT match.
+             * @example [
+             *       "UNDER_CONSTRUCTION"
+             *     ]
              * @example [
              *       "UNDER_CONSTRUCTION"
              *     ]
@@ -3517,6 +5602,9 @@ export interface components {
              * @example [
              *       "OLD"
              *     ]
+             * @example [
+             *       "OLD"
+             *     ]
              */
             inOrMissing?: ("OLD" | "NEW" | "UNDER_CONSTRUCTION")[];
         };
@@ -3524,30 +5612,59 @@ export interface components {
             /**
              * @description Transaction type filter — single value (SELL or RENT). Omit to include both.
              * @example SELL
+             * @example SELL
              * @enum {string|null}
              */
             type?: "SELL" | "RENT" | null;
         };
         PricingFilters: {
+            /**
+             * @description Observed price range — the raw price as advertised on the source listings. Whether agency fees are included depends on the source: some publishers post the fees-inclusive price, others the seller net price.
+             * @example {
+             *       "gte": 350000,
+             *       "lte": 750000
+             *     }
+             * @example {
+             *       "gte": 350000,
+             *       "lte": 750000
+             *     }
+             */
             displayed?: components["schemas"]["FloatRange"] | null;
+            /**
+             * @description Price per area-unit range (e.g. €/m² in France). Computed on displayed price/area.
+             * @example {
+             *       "gte": 8000,
+             *       "lte": 14000
+             *     }
+             * @example {
+             *       "gte": 8000,
+             *       "lte": 14000
+             *     }
+             */
             pricePerArea?: components["schemas"]["FloatRange"] | null;
+            /** @description Sale-side pricing filters (pricing.sale.*). */
             sale?: components["schemas"]["SalePricingFilters"] | null;
+            /** @description Rental-side pricing filters (pricing.rental.*). */
             rental?: components["schemas"]["RentalPricingFilters"] | null;
         };
         FloatRange: {
             /**
              * @description Minimum value (greater than or equal)
              * @example 50
+             * @example 50
              */
             gte?: number | null;
             /**
              * @description Maximum value (less than or equal)
              * @example 150
+             * @example 150
              */
             lte?: number | null;
         };
         SalePricingFilters: {
+            /** @description Seller net price (excluding agency fees). Targets property.pricing.sale.netPrice. */
             netPrice?: components["schemas"]["NullableFloatRange"] | null;
+            /** @description Sale fee filters (agency, condominium, legal). */
             fees?: components["schemas"]["SaleFeesFilters"] | null;
         };
         NullableFloatRange: {
@@ -3555,29 +5672,38 @@ export interface components {
              * @description When true, also match properties whose indexed field is missing. Default false (strict).
              * @default false
              * @example false
+             * @example false
              */
             orMissing: boolean;
             /**
              * @description Minimum value (greater than or equal)
+             * @example 50
              * @example 50
              */
             gte?: number | null;
             /**
              * @description Maximum value (less than or equal)
              * @example 150
+             * @example 150
              */
             lte?: number | null;
         };
         SaleFeesFilters: {
+            /** @description Agency fee filters. */
             agency?: components["schemas"]["SaleAgencyFilters"] | null;
+            /** @description Condominium fee filters. */
             condominium?: components["schemas"]["SaleCondominiumFilters"] | null;
+            /** @description Legal fee filters. */
             legal?: components["schemas"]["SaleLegalFilters"] | null;
         };
         SaleAgencyFilters: {
+            /** @description Agency fee amount (€). Targets property.pricing.sale.fees.agency.amount. */
             amount?: components["schemas"]["NullableFloatRange"] | null;
+            /** @description Agency fee percentage of the sale price. Targets property.pricing.sale.fees.agency.percentage. */
             percentage?: components["schemas"]["NullableFloatRange"] | null;
             /**
              * @description Who pays the agency fees on a sale: BUYER or SELLER. Targets property.pricing.sale.fees.agency.paidBy.
+             * @example SELLER
              * @example SELLER
              * @enum {string|null}
              */
@@ -3585,59 +5711,102 @@ export interface components {
             /**
              * @description Whether agency fees are included in the displayed price. Targets property.pricing.sale.fees.agency.includedInPrice.
              * @example true
+             * @example true
              */
             includedInPrice?: boolean | null;
         };
         SaleCondominiumFilters: {
+            /** @description Total monthly condominium fees. Targets property.pricing.sale.fees.condominium.total. */
             total?: components["schemas"]["NullableFloatRange"] | null;
         };
         SaleLegalFilters: {
+            /** @description Legal fee amount. Targets property.pricing.sale.fees.legal.amount. */
             amount?: components["schemas"]["NullableFloatRange"] | null;
         };
         RentalPricingFilters: {
+            /** @description Rent-level filters (charges-inclusion flag, etc.). */
             rent?: components["schemas"]["RentalRentFilters"] | null;
+            /** @description Rental fee filters (charges, deposit, inventory, tenant agency). */
             fees?: components["schemas"]["RentalFeesFilters"] | null;
         };
         RentalRentFilters: {
             /**
              * @description Whether the monthly rent already includes charges. Targets property.pricing.rental.rent.includesCharges.
              * @example true
+             * @example true
              */
             includesCharges?: boolean | null;
         };
         RentalFeesFilters: {
+            /** @description Monthly charges filters. */
             charges?: components["schemas"]["RentalChargesFilters"] | null;
+            /** @description Security deposit filters. */
             deposit?: components["schemas"]["RentalDepositFilters"] | null;
+            /** @description Inventory check fee filters. */
             inventory?: components["schemas"]["RentalInventoryFilters"] | null;
+            /** @description Tenant-side agency fee filters. */
             agency?: components["schemas"]["RentalAgencyFilters"] | null;
         };
         RentalChargesFilters: {
+            /** @description Monthly rental charges amount. Targets property.pricing.rental.fees.charges.amount. */
             amount?: components["schemas"]["NullableFloatRange"] | null;
         };
         RentalDepositFilters: {
+            /** @description Security deposit amount. Targets property.pricing.rental.fees.deposit.amount. */
             amount?: components["schemas"]["NullableFloatRange"] | null;
         };
         RentalInventoryFilters: {
+            /** @description Inventory check fee amount. Targets property.pricing.rental.fees.inventory.amount. */
             amount?: components["schemas"]["NullableFloatRange"] | null;
         };
         RentalAgencyFilters: {
+            /** @description Agency fee amount charged to the tenant. Targets property.pricing.rental.fees.agency.amount. */
             amount?: components["schemas"]["NullableFloatRange"] | null;
         };
         AreasFilters: {
+            /**
+             * @description Headline area range in m². Targets property.area.displayed.
+             * @example {
+             *       "gte": 45,
+             *       "lte": 95
+             *     }
+             * @example {
+             *       "gte": 45,
+             *       "lte": 95
+             *     }
+             */
             displayed?: components["schemas"]["FloatRange"] | null;
+            /**
+             * @description Land area range in m². Targets property.area.land.value.
+             * @example {
+             *       "gte": 200,
+             *       "lte": 2000
+             *     }
+             * @example {
+             *       "gte": 200,
+             *       "lte": 2000
+             *     }
+             */
             land?: components["schemas"]["FloatRange"] | null;
         };
         LocationFilters: {
             /**
-             * @description Country scope (FR, BE, …). Required for uniqueCodes anti-collision.
+             * @description Country the uniqueCodes belong to. Applies to uniqueCodes only; uniqueCodes sent without countryCode are ignored.
+             * @example FR
              * @example FR
              * @enum {string|null}
              */
             countryCode?: "FR" | "BE" | null;
+            /** @description Locations the property must intersect (OR across the five fields). */
             in?: components["schemas"]["LocationsSet"] | null;
+            /** @description Locations the property must NOT intersect (OR across the five fields). */
             nin?: components["schemas"]["LocationsSet"] | null;
             /**
              * @description Allowed location accuracy levels. Empty = no filter. Use e.g. [PRECISE, STREET] to keep only well-geolocated properties.
+             * @example [
+             *       "PRECISE",
+             *       "STREET"
+             *     ]
              * @example [
              *       "PRECISE",
              *       "STREET"
@@ -3651,12 +5820,21 @@ export interface components {
              * @example [
              *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
              *     ]
+             * @example [
+             *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
+             *     ]
              */
             ids?: string[];
+            /** @description Single center+radius geographic circle. */
             centerPoint?: components["schemas"]["CenterPoint"] | null;
+            /** @description GeoJSON polygons / multipolygons (RFC 7946 — geometry types Polygon and MultiPolygon). A property inside any one shape matches. */
             geoShapes?: components["schemas"]["GeoJsonGeometry"][];
             /**
              * @description Postal codes.
+             * @example [
+             *       "75018",
+             *       "75019"
+             *     ]
              * @example [
              *       "75018",
              *       "75019"
@@ -3668,6 +5846,9 @@ export interface components {
              * @example [
              *       "75118"
              *     ]
+             * @example [
+             *       "75118"
+             *     ]
              */
             uniqueCodes?: string[];
         };
@@ -3676,11 +5857,13 @@ export interface components {
              * @description Center latitude in WGS 84.
              * @default 0
              * @example 48.8566
+             * @example 48.8566
              */
             latitude: number;
             /**
              * @description Center longitude in WGS 84.
              * @default 0
+             * @example 2.3522
              * @example 2.3522
              */
             longitude: number;
@@ -3688,22 +5871,65 @@ export interface components {
              * @description Search radius in kilometers.
              * @default 0
              * @example 5
+             * @example 5
              */
             radiusKm: number;
         };
         UnitFilters: {
+            /** @description Unit-interior feature filters (in / nin / inOrMissing). */
             features?: components["schemas"]["UnitFeatureFilters"] | null;
+            /**
+             * @description Number of rooms range. Opt-in orMissing to keep properties without an indexed room count.
+             * @example {
+             *       "gte": 2,
+             *       "lte": 5
+             *     }
+             * @example {
+             *       "gte": 2,
+             *       "lte": 5
+             *     }
+             */
             rooms?: components["schemas"]["NullableIntRange"] | null;
+            /**
+             * @description Number of bedrooms range. Opt-in orMissing to keep properties without an indexed bedroom count.
+             * @example {
+             *       "gte": 1,
+             *       "lte": 3
+             *     }
+             * @example {
+             *       "gte": 1,
+             *       "lte": 3
+             *     }
+             */
             bedrooms?: components["schemas"]["NullableIntRange"] | null;
+            /**
+             * @description Floor number range. Opt-in orMissing to keep properties without an indexed floor (e.g. houses).
+             * @example {
+             *       "gte": 1,
+             *       "lte": 5
+             *     }
+             * @example {
+             *       "gte": 1,
+             *       "lte": 5
+             *     }
+             */
             floor?: components["schemas"]["NullableIntRange"] | null;
+            /** @description Orientation filter (in / nin / inOrMissing). */
             orientation?: components["schemas"]["OrientationFilters"] | null;
+            /** @description Condition filter (in / nin / inOrMissing). */
             condition?: components["schemas"]["ConditionFilters"] | null;
+            /** @description Filters on the canonical regulatory diagnostic (DPE / audit): regulatory standard, per-score rating letters and/or value ranges. */
             diagnostic?: components["schemas"]["UnitDiagnosticFilter"] | null;
+            /** @description Filters on the unit's energy heating (system, fuel, collective flag). */
             energy?: components["schemas"]["EnergyFilters"] | null;
         };
         UnitFeatureFilters: {
             /**
              * @description Features the property must have (strict — feature must be indexed as true).
+             * @example [
+             *       "BALCONY",
+             *       "TERRACE"
+             *     ]
              * @example [
              *       "BALCONY",
              *       "TERRACE"
@@ -3715,10 +5941,16 @@ export interface components {
              * @example [
              *       "GROUND_FLOOR"
              *     ]
+             * @example [
+             *       "GROUND_FLOOR"
+             *     ]
              */
             nin?: ("LAST_FLOOR" | "GROUND_FLOOR" | "GARDEN_FLOOR" | "FURNISHED" | "DISABLED_ACCESS" | "EQUIPPED_KITCHEN" | "FIREPLACE" | "AIR_CONDITIONING" | "DOUBLE_GLAZING" | "PARQUET" | "BALCONY" | "TERRACE" | "GARDEN" | "DRESSING" | "CROSSING" | "QUIET" | "CELLAR" | "BASEMENT" | "STORAGE")[];
             /**
              * @description Features the property is allowed to have OR be missing — keeps properties where the feature is documented true AND those where it has not been documented at all. Excludes only explicitly-false properties.
+             * @example [
+             *       "FURNISHED"
+             *     ]
              * @example [
              *       "FURNISHED"
              *     ]
@@ -3730,15 +5962,18 @@ export interface components {
              * @description When true, also match properties whose indexed field is missing. Default false (strict).
              * @default false
              * @example false
+             * @example false
              */
             orMissing: boolean;
             /**
              * @description Minimum value (greater than or equal)
              * @example 2
+             * @example 2
              */
             gte?: number | null;
             /**
              * @description Maximum value (less than or equal)
+             * @example 5
              * @example 5
              */
             lte?: number | null;
@@ -3750,6 +5985,10 @@ export interface components {
              *       "SOUTH",
              *       "SOUTH_WEST"
              *     ]
+             * @example [
+             *       "SOUTH",
+             *       "SOUTH_WEST"
+             *     ]
              */
             in?: ("NORTH" | "NORTH_EAST" | "EAST" | "SOUTH_EAST" | "SOUTH" | "SOUTH_WEST" | "WEST" | "NORTH_WEST")[];
             /**
@@ -3757,10 +5996,16 @@ export interface components {
              * @example [
              *       "NORTH"
              *     ]
+             * @example [
+             *       "NORTH"
+             *     ]
              */
             nin?: ("NORTH" | "NORTH_EAST" | "EAST" | "SOUTH_EAST" | "SOUTH" | "SOUTH_WEST" | "WEST" | "NORTH_WEST")[];
             /**
              * @description Orientations the unit is allowed to face OR be missing — keeps properties without documented orientation.
+             * @example [
+             *       "SOUTH"
+             *     ]
              * @example [
              *       "SOUTH"
              *     ]
@@ -3774,10 +6019,17 @@ export interface components {
              *       "NEW",
              *       "GOOD"
              *     ]
+             * @example [
+             *       "NEW",
+             *       "GOOD"
+             *     ]
              */
             in?: ("NEW" | "GOOD" | "TO_RENOVATE")[];
             /**
              * @description Conditions the unit must NOT match.
+             * @example [
+             *       "TO_RENOVATE"
+             *     ]
              * @example [
              *       "TO_RENOVATE"
              *     ]
@@ -3788,16 +6040,68 @@ export interface components {
              * @example [
              *       "GOOD"
              *     ]
+             * @example [
+             *       "GOOD"
+             *     ]
              */
             inOrMissing?: ("NEW" | "GOOD" | "TO_RENOVATE")[];
         };
         UnitDiagnosticFilter: {
+            /** @description Regulatory standard filter (in / nin / inOrMissing); inOrMissing keeps properties whose standard is unknown. */
             standard?: components["schemas"]["EnergyCertificateStandardFilters"] | null;
+            /**
+             * @description Per-score filters. Each entry pins a type (e.g. ENERGY_CONSUMPTION) and optionally constrains its rating letters and/or numeric value range.
+             * @example [
+             *       {
+             *         "type": "ENERGY_CONSUMPTION",
+             *         "rating": [
+             *           "A",
+             *           "B",
+             *           "C"
+             *         ],
+             *         "value": {
+             *           "gte": 50,
+             *           "lte": 250
+             *         }
+             *       },
+             *       {
+             *         "type": "CARBON_EMISSIONS",
+             *         "rating": [
+             *           "A",
+             *           "B"
+             *         ]
+             *       }
+             *     ]
+             * @example [
+             *       {
+             *         "type": "ENERGY_CONSUMPTION",
+             *         "rating": [
+             *           "A",
+             *           "B",
+             *           "C"
+             *         ],
+             *         "value": {
+             *           "gte": 50,
+             *           "lte": 250
+             *         }
+             *       },
+             *       {
+             *         "type": "CARBON_EMISSIONS",
+             *         "rating": [
+             *           "A",
+             *           "B"
+             *         ]
+             *       }
+             *     ]
+             */
             scores?: components["schemas"]["DiagnosticScoreFilter"][];
         };
         EnergyCertificateStandardFilters: {
             /**
              * @description Standards the diagnostic must follow (strict — at least one match required).
+             * @example [
+             *       "FR_DPE_2021"
+             *     ]
              * @example [
              *       "FR_DPE_2021"
              *     ]
@@ -3808,10 +6112,16 @@ export interface components {
              * @example [
              *       "FR_DPE_2006"
              *     ]
+             * @example [
+             *       "FR_DPE_2006"
+             *     ]
              */
             nin?: ("FR_DPE_2006" | "FR_DPE_2021")[];
             /**
              * @description Standards the diagnostic is allowed to follow OR be missing — keeps properties whose standard is unknown.
+             * @example [
+             *       "FR_DPE_2021"
+             *     ]
              * @example [
              *       "FR_DPE_2021"
              *     ]
@@ -3821,6 +6131,7 @@ export interface components {
         DiagnosticScoreFilter: {
             /**
              * @description Diagnostic score type — ENERGY_CONSUMPTION or CARBON_EMISSIONS for now.
+             * @example ENERGY_CONSUMPTION
              * @example ENERGY_CONSUMPTION
              * @enum {string|null}
              */
@@ -3832,30 +6143,52 @@ export interface components {
              *       "B",
              *       "C"
              *     ]
+             * @example [
+             *       "A",
+             *       "B",
+             *       "C"
+             *     ]
              */
             rating?: ("A" | "B" | "C" | "D" | "E" | "F" | "G")[];
+            /**
+             * @description Numeric score range. Unit depends on score type (typically kWh/m²/year for ENERGY_CONSUMPTION, kgCO₂/m²/year for CARBON_EMISSIONS).
+             * @example {
+             *       "gte": 50,
+             *       "lte": 250
+             *     }
+             * @example {
+             *       "gte": 50,
+             *       "lte": 250
+             *     }
+             */
             value?: components["schemas"]["IntRange"] | null;
         };
         IntRange: {
             /**
              * @description Minimum value (greater than or equal)
              * @example 2
+             * @example 2
              */
             gte?: number | null;
             /**
              * @description Maximum value (less than or equal)
              * @example 5
+             * @example 5
              */
             lte?: number | null;
         };
         EnergyFilters: {
+            /** @description Heating filters (system, energy carrier, collective flag). */
             heating?: components["schemas"]["HeatingFilters"] | null;
         };
         HeatingFilters: {
+            /** @description Heating system filter (in / nin). */
             system?: components["schemas"]["HeatingSystemFilters"] | null;
+            /** @description Energy carrier (fuel) filter (in / nin). */
             energyCarrier?: components["schemas"]["EnergyCarrierFilters"] | null;
             /**
              * @description Whether heating is collective (shared with the building) or individual. Targets property.unit.energy.heating.collective.
+             * @example false
              * @example false
              */
             collective?: boolean | null;
@@ -3867,10 +6200,17 @@ export interface components {
              *       "HEAT_PUMP",
              *       "FLOOR_HEATING"
              *     ]
+             * @example [
+             *       "HEAT_PUMP",
+             *       "FLOOR_HEATING"
+             *     ]
              */
             in?: ("BOILER" | "HEAT_PUMP" | "RADIATOR" | "FLOOR_HEATING" | "SOLAR_THERMAL" | "WOOD_STOVE" | "AIR_CONDITIONING" | "ELECTRIC_HEATER")[];
             /**
              * @description Heating systems the property must NOT use.
+             * @example [
+             *       "ELECTRIC_HEATER"
+             *     ]
              * @example [
              *       "ELECTRIC_HEATER"
              *     ]
@@ -3884,6 +6224,10 @@ export interface components {
              *       "GAS",
              *       "ELECTRICITY"
              *     ]
+             * @example [
+             *       "GAS",
+             *       "ELECTRICITY"
+             *     ]
              */
             in?: ("GAS" | "ELECTRICITY" | "OIL" | "WOOD" | "SOLAR" | "GEOTHERMAL" | "DISTRICT_HEATING")[];
             /**
@@ -3891,21 +6235,73 @@ export interface components {
              * @example [
              *       "OIL"
              *     ]
+             * @example [
+             *       "OIL"
+             *     ]
              */
             nin?: ("GAS" | "ELECTRICITY" | "OIL" | "WOOD" | "SOLAR" | "GEOTHERMAL" | "DISTRICT_HEATING")[];
         };
         BuildingFilters: {
+            /**
+             * @description Construction year range. Opt-in orMissing to keep properties without an indexed construction year.
+             * @example {
+             *       "gte": 1900,
+             *       "lte": 2024
+             *     }
+             * @example {
+             *       "gte": 1900,
+             *       "lte": 2024
+             *     }
+             */
             constructionYear?: components["schemas"]["NullableIntRange"] | null;
+            /**
+             * @description Renovation year range. Opt-in orMissing to keep properties without an indexed renovation year.
+             * @example {
+             *       "gte": 2010
+             *     }
+             * @example {
+             *       "gte": 2010
+             *     }
+             */
             renovationYear?: components["schemas"]["NullableIntRange"] | null;
+            /**
+             * @description Number of lots range (condominium size). Opt-in orMissing to keep properties without an indexed lot count.
+             * @example {
+             *       "gte": 10,
+             *       "lte": 100
+             *     }
+             * @example {
+             *       "gte": 10,
+             *       "lte": 100
+             *     }
+             */
             numberOfLots?: components["schemas"]["NullableIntRange"] | null;
+            /**
+             * @description Total number of floors in the building (distinct from unit.floor which is the dwelling's floor). Opt-in orMissing to keep properties without an indexed floor count.
+             * @example {
+             *       "gte": 3,
+             *       "lte": 8
+             *     }
+             * @example {
+             *       "gte": 3,
+             *       "lte": 8
+             *     }
+             */
             floors?: components["schemas"]["NullableIntRange"] | null;
+            /** @description Construction type filter (in / nin / inOrMissing). */
             constructionType?: components["schemas"]["ConstructionTypeFilters"] | null;
+            /** @description Condition filter (in / nin / inOrMissing). */
             condition?: components["schemas"]["ConditionFilters"] | null;
+            /** @description Filters on the building's energy heating (system, fuel, collective flag). */
             energy?: components["schemas"]["EnergyFilters"] | null;
         };
         ConstructionTypeFilters: {
             /**
              * @description Construction types the building must be one of.
+             * @example [
+             *       "HAUSSMANNIAN",
+             *       "STONE"
+             *     ]
              * @example [
              *       "HAUSSMANNIAN",
              *       "STONE"
@@ -3917,6 +6313,9 @@ export interface components {
              * @example [
              *       "OTHER"
              *     ]
+             * @example [
+             *       "OTHER"
+             *     ]
              */
             nin?: ("HAUSSMANNIAN" | "MODERN" | "CONTEMPORARY" | "TRADITIONAL" | "STONE" | "BRICK" | "CONCRETE" | "WOOD" | "MIXED" | "OTHER")[];
             /**
@@ -3924,15 +6323,23 @@ export interface components {
              * @example [
              *       "HAUSSMANNIAN"
              *     ]
+             * @example [
+             *       "HAUSSMANNIAN"
+             *     ]
              */
             inOrMissing?: ("HAUSSMANNIAN" | "MODERN" | "CONTEMPORARY" | "TRADITIONAL" | "STONE" | "BRICK" | "CONCRETE" | "WOOD" | "MIXED" | "OTHER")[];
         };
         AmenityFilters: {
+            /** @description Amenity feature filters (in / nin / inOrMissing). */
             features?: components["schemas"]["AmenityFeatureFilters"] | null;
         };
         AmenityFeatureFilters: {
             /**
              * @description Amenities the property must have (strict — amenity must be indexed as true).
+             * @example [
+             *       "ELEVATOR",
+             *       "PARKING"
+             *     ]
              * @example [
              *       "ELEVATOR",
              *       "PARKING"
@@ -3944,6 +6351,9 @@ export interface components {
              * @example [
              *       "GATED_COMMUNITY"
              *     ]
+             * @example [
+             *       "GATED_COMMUNITY"
+             *     ]
              */
             nin?: ("ELEVATOR" | "INTERCOM" | "DIGICODE" | "CARETAKER" | "BIKE_ROOM" | "DISABLED_ACCESS" | "GYM" | "PLAYGROUND" | "PARTY_HALL" | "SPORT_COURT" | "ADULT_GAME_ROOM" | "GATED_COMMUNITY" | "BARBECUE_GRILL" | "SWIMMING_POOL" | "PARKING")[];
             /**
@@ -3951,16 +6361,54 @@ export interface components {
              * @example [
              *       "ELEVATOR"
              *     ]
+             * @example [
+             *       "ELEVATOR"
+             *     ]
              */
             inOrMissing?: ("ELEVATOR" | "INTERCOM" | "DIGICODE" | "CARETAKER" | "BIKE_ROOM" | "DISABLED_ACCESS" | "GYM" | "PLAYGROUND" | "PARTY_HALL" | "SPORT_COURT" | "ADULT_GAME_ROOM" | "GATED_COMMUNITY" | "BARBECUE_GRILL" | "SWIMMING_POOL" | "PARKING")[];
         };
         BodyFilters: {
+            /**
+             * @description Phrase filters on the property title.
+             * @example {
+             *       "in": [
+             *         "vue mer"
+             *       ]
+             *     }
+             * @example {
+             *       "in": [
+             *         "vue mer"
+             *       ]
+             *     }
+             */
             title?: components["schemas"]["BodyTextFilter"] | null;
+            /**
+             * @description Phrase filters on the property description.
+             * @example {
+             *       "in": [
+             *         "à rénover"
+             *       ],
+             *       "nin": [
+             *         "bail commercial"
+             *       ]
+             *     }
+             * @example {
+             *       "in": [
+             *         "à rénover"
+             *       ],
+             *       "nin": [
+             *         "bail commercial"
+             *       ]
+             *     }
+             */
             description?: components["schemas"]["BodyTextFilter"] | null;
         };
         BodyTextFilter: {
             /**
              * @description Phrases the text must contain at least one of (up to 25). Each entry matches only where its words appear side by side, in order; case and accents are ignored.
+             * @example [
+             *       "à rénover"
+             *     ]
              * @example [
              *       "à rénover"
              *     ]
@@ -3972,14 +6420,24 @@ export interface components {
              *       "bail commercial",
              *       "ehpad"
              *     ]
+             * @example [
+             *       "bail commercial",
+             *       "ehpad"
+             *     ]
              */
             nin?: string[];
         };
         PublisherFilters: {
+            /** @description Publisher type filter (in / nin). Use "PROFESSIONAL" as a shorthand for every non-individual case. */
             type?: components["schemas"]["PublisherTypeFilters"] | null;
+            /** @description Publisher mandate filter (in / nin). Targets publishers.mandate. */
             mandate?: components["schemas"]["MandateFilters"] | null;
             /**
              * @description Match if any of the publisher's listing references is in the array. Targets publishers.reference.
+             * @example [
+             *       "REF-12345",
+             *       "INTERNAL-99"
+             *     ]
              * @example [
              *       "REF-12345",
              *       "INTERNAL-99"
@@ -3989,10 +6447,12 @@ export interface components {
             /**
              * @description When true, only keep publishers that carry an email. When false, only those without. Targets publishers.contact.email.
              * @example true
+             * @example true
              */
             hasEmail?: boolean | null;
             /**
              * @description When true, only keep publishers that carry a phone number. When false, only those without. Targets publishers.contact.phone.
+             * @example true
              * @example true
              */
             hasPhone?: boolean | null;
@@ -4003,10 +6463,16 @@ export interface components {
              * @example [
              *       "PROFESSIONAL"
              *     ]
+             * @example [
+             *       "PROFESSIONAL"
+             *     ]
              */
             in?: ("PRIVATE_INDIVIDUAL" | "REAL_ESTATE_AGENCY" | "COMMERCIAL_AGENT" | "MANDATED_AGENT" | "PROFESSIONAL_UNKNOWN" | "PROFESSIONAL")[];
             /**
              * @description Publisher types the matching publisher must NOT be in.
+             * @example [
+             *       "PRIVATE_INDIVIDUAL"
+             *     ]
              * @example [
              *       "PRIVATE_INDIVIDUAL"
              *     ]
@@ -4020,10 +6486,17 @@ export interface components {
              *       "EXCLUSIVE",
              *       "SEMI_EXCLUSIVE"
              *     ]
+             * @example [
+             *       "EXCLUSIVE",
+             *       "SEMI_EXCLUSIVE"
+             *     ]
              */
             in?: ("NON_EXCLUSIVE" | "EXCLUSIVE" | "SEMI_EXCLUSIVE")[];
             /**
              * @description Mandates the matching publisher must NOT hold.
+             * @example [
+             *       "NON_EXCLUSIVE"
+             *     ]
              * @example [
              *       "NON_EXCLUSIVE"
              *     ]
@@ -4033,16 +6506,21 @@ export interface components {
         ListingsFilters: {
             /**
              * Format: uri
-             * @description Exact listing URL match. Targets listings.url — returns at most one property.
+             * @description Listing URL, with or without a trailing slash. An exact match is not required: when the search matches nothing, the URL is resolved from the information it carries. Alerts match the exact URL only. Targets listings.url.
+             * @example https://www.real-estate.io/ventes_immobilieres/123456789.html
              * @example https://www.real-estate.io/ventes_immobilieres/123456789.html
              */
             url?: string | null;
+            /** @description Source filter (in / nin by source id). Targets listings.source.id. */
             sources?: components["schemas"]["SourceFilters"] | null;
+            /** @description Marketing filters on the listing (favorites count, urgent / boosted / highlighted flags). */
             marketing?: components["schemas"]["MarketingFilters"] | null;
+            /** @description Restrict to expired listings, optionally within an expiry date range (from / to). Setting this filter includes expired listings, which search hides by default. Targets listings.expiredAt. */
             expiredAt?: components["schemas"]["DateRange"] | null;
             /**
              * @description Whether listing prices look coherent with the local market. Defaults to true: properties whose listings are all price-incoherent are hidden from results. Set false to return only those properties. Judged across the whole property rather than per listing.
              * @default true
+             * @example false
              * @example false
              */
             priceCoherent: boolean | null;
@@ -4053,6 +6531,9 @@ export interface components {
              * @example [
              *       "019e1a00-0000-7000-8000-00000000bcd1"
              *     ]
+             * @example [
+             *       "019e1a00-0000-7000-8000-00000000bcd1"
+             *     ]
              */
             in?: string[];
             /**
@@ -4060,23 +6541,38 @@ export interface components {
              * @example [
              *       "019e1a00-0000-7000-8000-00000000aaaa"
              *     ]
+             * @example [
+             *       "019e1a00-0000-7000-8000-00000000aaaa"
+             *     ]
              */
             nin?: string[];
         };
         MarketingFilters: {
+            /**
+             * @description Number of times the listing has been favorited. Targets listings.marketing.favorites.
+             * @example {
+             *       "gte": 5
+             *     }
+             * @example {
+             *       "gte": 5
+             *     }
+             */
             favorites?: components["schemas"]["NullableIntRange"] | null;
             /**
              * @description Whether the listing is flagged urgent. Targets listings.marketing.urgent.
+             * @example true
              * @example true
              */
             urgent?: boolean | null;
             /**
              * @description Whether the listing is boosted by the publisher. Targets listings.marketing.boosted.
              * @example true
+             * @example true
              */
             boosted?: boolean | null;
             /**
              * @description Whether the listing is highlighted on the source. Targets listings.marketing.highlighted.
+             * @example true
              * @example true
              */
             highlighted?: boolean | null;
@@ -4086,22 +6582,29 @@ export interface components {
              * Format: date-time
              * @description Lower bound (inclusive) — ISO 8601.
              * @example 2024-01-01T00:00:00Z
+             * @example 2024-01-01T00:00:00Z
              */
             from?: string | null;
             /**
              * Format: date-time
              * @description Upper bound (inclusive) — ISO 8601.
              * @example 2024-12-31T23:59:59Z
+             * @example 2024-12-31T23:59:59Z
              */
             to?: string | null;
         };
         DatesFilters: {
+            /** @description Date range on property.createdAt. */
             createdAt?: components["schemas"]["DateRange"] | null;
+            /** @description Date range on property.updatedAt (when data was last collected from a source for this property). */
             updatedAt?: components["schemas"]["DateRange"] | null;
         };
         ChangesFilters: {
+            /** @description Filter by the changed attribute (in / nin). Targets changes.attribute. */
             attribute?: components["schemas"]["AttributeFilter"] | null;
+            /** @description Signed variation range on numeric changes (price, area). A drop is negative: a 3 to 5 percent price drop is gte -5, lte -3. Targets changes.variationPercent. */
             variationPercent?: components["schemas"]["SignedFloatRange"] | null;
+            /** @description Date range on when the change occurred (from / to). Targets changes.at. */
             occurredAt?: components["schemas"]["DateRange"] | null;
         };
         AttributeFilter: {
@@ -4110,34 +6613,45 @@ export interface components {
              * @example [
              *       "DISPLAYED_PRICE"
              *     ]
+             * @example [
+             *       "DISPLAYED_PRICE"
+             *     ]
              */
-            in?: ("DISPLAYED_PRICE" | "DISPLAYED_AREA" | "DESCRIPTION" | "TITLE" | "FEATURES" | "ROOMS" | "BEDROOMS" | "ADDRESS" | "GEO_POINT" | "CITY" | "DISTRICT" | "NEIGHBORHOOD" | "LOCATION_ACCURACY" | "PICTURES")[];
+            in?: ("DISPLAYED_PRICE" | "DISPLAYED_AREA" | "DESCRIPTION" | "TITLE" | "FEATURES" | "ROOMS" | "BEDROOMS" | "ADDRESS" | "GEO_POINT" | "CITY" | "DISTRICT" | "NEIGHBORHOOD" | "LOCATION_ACCURACY" | "PICTURES" | "MARKET_PRESENCE")[];
             /**
              * @description Changed attributes the change must not be. Applies to one change at a time, so a property still matches if it also has a change on one of these attributes elsewhere.
              * @example [
              *       "TITLE",
              *       "DESCRIPTION"
              *     ]
+             * @example [
+             *       "TITLE",
+             *       "DESCRIPTION"
+             *     ]
              */
-            nin?: ("DISPLAYED_PRICE" | "DISPLAYED_AREA" | "DESCRIPTION" | "TITLE" | "FEATURES" | "ROOMS" | "BEDROOMS" | "ADDRESS" | "GEO_POINT" | "CITY" | "DISTRICT" | "NEIGHBORHOOD" | "LOCATION_ACCURACY" | "PICTURES")[];
+            nin?: ("DISPLAYED_PRICE" | "DISPLAYED_AREA" | "DESCRIPTION" | "TITLE" | "FEATURES" | "ROOMS" | "BEDROOMS" | "ADDRESS" | "GEO_POINT" | "CITY" | "DISTRICT" | "NEIGHBORHOOD" | "LOCATION_ACCURACY" | "PICTURES" | "MARKET_PRESENCE")[];
         };
         SignedFloatRange: {
             /**
              * @description Minimum value (greater than or equal). May be negative.
+             * @example -5
              * @example -5
              */
             gte?: number | null;
             /**
              * @description Maximum value (less than or equal). May be negative.
              * @example -3
+             * @example -3
              */
             lte?: number | null;
         };
         "PropertySearch.PropertySearchRequestInput": {
+            /** @description Search criteria tree. A node is one of: a flat set of filters (most common); {"and": [...]} requiring all children to match; {"or": [...]} requiring at least one child to match. Omit to match every property except new-build and under-construction ones, which are left out unless property.constructionStatus is filtered. */
             criteria?: components["schemas"]["CriteriaNode"] | null;
             /**
              * @description Pagination mode — "PAGE" (default, offset-based) or "CURSOR" (cursor-based). In "PAGE" mode, use page+size. In "CURSOR" mode, use cursor+size.
              * @default PAGE
+             * @example PAGE
              * @example PAGE
              * @enum {string}
              */
@@ -4146,24 +6660,29 @@ export interface components {
              * @description Page number (1-based). Honored only when paginationType is "PAGE".
              * @default 1
              * @example 1
+             * @example 1
              */
             page: number | null;
             /**
-             * @description Number of items per page (max 100)
+             * @description Number of items per page, from 0 to 100. With 0 the response carries no item, only the number of matching properties, readable as meta.totalItems in the JSON:API format and reported up to 10,000 in "PAGE" mode.
              * @default 10
+             * @example 10
              * @example 10
              */
             size: number;
             /**
              * @description Opaque cursor for the next page, returned from the previous response. Honored only when paginationType is "CURSOR". Omit or set to null for the first page.
              * @example eyJzb3J0IjpbMTc3ODg0NDY0MzAwMCwiMDE5Z
+             * @example eyJzb3J0IjpbMTc3ODg0NDY0MzAwMCwiMDE5Z
              */
             cursor?: string | null;
+            /** @description Sort directive (field + direction). Defaults to updatedAt DESC when omitted. A tiebreaker is appended for stable pagination. */
             sort?: components["schemas"]["Sort"] | null;
         };
         Sort: {
             /**
              * @description Field to sort on. One of CREATED_AT, UPDATED_AT, PRICE, AREA, PRICE_PER_AREA.
+             * @example PRICE
              * @example PRICE
              * @enum {string|null}
              */
@@ -4171,6 +6690,7 @@ export interface components {
             /**
              * @description Sort direction (ASC or DESC). Defaults to DESC.
              * @default DESC
+             * @example DESC
              * @example DESC
              * @enum {string}
              */
@@ -4180,15 +6700,19 @@ export interface components {
             /**
              * @description Human-readable alert name, surfaced in the user dashboard. Optional — clients can leave it blank and rely on the generated criteria summary. On update, omit it to keep the current name, or send null to clear it.
              * @example 2-bedroom apartments in Paris
+             * @example 2-bedroom apartments in Paris
              */
             name?: string | null;
             /**
              * @description Whether the alert is enabled. A disabled alert stops matching new listings and sends nothing, including notifications already queued for it. New alerts are enabled; on update, omit it to keep the current value.
              * @example true
+             * @example true
              */
             enabled?: boolean;
             criteria?: components["schemas"]["Alert.CriteriaNode"] | null;
+            /** @description Notification destination. Provide exactly one destination input. On create, omit it to use your default destination at delivery time; on update, omit it to keep the current destination, or send null to go back to your default. */
             notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+            /** @description Notification configuration, which selects the event types you receive. On create, omit it and the alert never notifies; on update, omit it to keep the current configuration, or send null to stop notifying. */
             notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
         };
         NotificationDestination: {
@@ -4196,42 +6720,85 @@ export interface components {
              * Format: iri-reference
              * @description Existing event destination to link. Provide only one destination input.
              * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
+             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
              */
             eventDestination?: string | null;
             /**
              * @description Webhook URL; creates or reuses a webhook destination. Provide only one destination input.
              * @example https://your-server.com/webhooks/alerts
+             * @example https://your-server.com/webhooks/alerts
              */
             webhookUrl?: string | null;
         };
+        "AlertForecast.AlertForecastInput": {
+            criteria?: components["schemas"]["Alert.CriteriaNode"] | null;
+        };
+        "Alert.PropertyFacetFilters": {
+            /** @description Property-type filter (in / nin). Targets property.propertyType. */
+            type?: components["schemas"]["PropertyTypeFilters"] | null;
+            /** @description Construction-status filter (in / nin / inOrMissing). Omitting any construction-status filter across the whole criteria restricts a search or an alert to OLD or not-yet-qualified properties by default. */
+            constructionStatus?: components["schemas"]["ConstructionStatusFilters"] | null;
+            /** @description Transaction facet filter (type). */
+            transaction?: components["schemas"]["TransactionFilters"] | null;
+            /** @description Pricing facet filters (displayed, pricePerArea, sale + rental subtrees). */
+            pricing?: components["schemas"]["PricingFilters"] | null;
+            /** @description Area filters (area.displayed headline plus land). */
+            areas?: components["schemas"]["AreasFilters"] | null;
+            /** @description Geographic filter (in / nin sets, accuracy). */
+            locations?: components["schemas"]["LocationFilters"] | null;
+            /** @description Unit-interior filters (features, rooms, bedrooms, diagnostic, energy). */
+            unit?: components["schemas"]["UnitFilters"] | null;
+            /** @description Building filters (construction year, renovation year, number of lots, type, condition, energy). */
+            building?: components["schemas"]["BuildingFilters"] | null;
+            /** @description Amenity feature filters (in / nin / inOrMissing). */
+            amenities?: components["schemas"]["AmenityFilters"] | null;
+            /** @description Free-text body filters (title, description). */
+            body?: components["schemas"]["BodyFilters"] | null;
+        };
         "Alert.Filters": {
-            property?: components["schemas"]["PropertyFacetFilters"] | null;
+            property?: components["schemas"]["Alert.PropertyFacetFilters"] | null;
+            /** @description Publisher filters (type, mandate, references, contact-presence) — all clauses apply to the SAME publisher (intra-publisher semantic). For cross-publisher independent matching, combine multiple publisher blocks via and: at the criteria tree level. */
             publisher?: components["schemas"]["PublisherFilters"] | null;
+            /** @description Listing-level filters targeting the nested listings.* (url, sources, marketing flags) — all clauses apply to the SAME listing. */
             listings?: components["schemas"]["ListingsFilters"] | null;
         };
         "Alert.AndNode": {
+            /** @description Child nodes — all must match. */
             and?: components["schemas"]["Alert.CriteriaNode"][];
         };
         "Alert.OrNode": {
+            /** @description Child nodes — at least one must match. */
             or?: components["schemas"]["Alert.CriteriaNode"][];
         };
-        /** @description An alert criteria node. Same shapes as the property-search criteria (a flat Filters object, {"and": [...]}, or {"or": [...]}) but the dates and changes filters are not supported — they only apply to property search. */
+        /** @description An alert criteria node. Same shapes as the property-search criteria (a flat Filters object, {"and": [...]}, or {"or": [...]}) but the dates, changes and property.id filters are not supported — they only apply to property search. */
         "Alert.CriteriaNode": components["schemas"]["Alert.Filters"] | components["schemas"]["Alert.AndNode"] | components["schemas"]["Alert.OrNode"];
         "PropertySearchResult.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example PropertySearchResult */
-            type: string;
+            /**
+             * @example Property
+             * @example Property
+             * @enum {string}
+             */
+            type: "Property";
+            /** @description Aggregated canonical view of the property (carries the property timestamps). */
             attributes?: components["schemas"]["PropertySection"];
             relationships?: {
                 listings: {
                     data: {
                         /**
                          * @example Listing
+                         * @example Listing
                          * @enum {string}
                          */
                         type: "Listing";
-                        /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                        /**
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
                         id: string;
                     }[];
                 };
@@ -4239,52 +6806,99 @@ export interface components {
                     data: {
                         /**
                          * @example Publisher
+                         * @example Publisher
                          * @enum {string}
                          */
                         type: "Publisher";
-                        /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                        /**
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    }[];
+                };
+                propertyPublishers: {
+                    data: {
+                        /**
+                         * @example PropertyPublisher
+                         * @example PropertyPublisher
+                         * @enum {string}
+                         */
+                        type: "PropertyPublisher";
+                        /**
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
                         id: string;
                     }[];
                 };
             };
             links?: {
-                /** @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                /**
+                 * @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 * @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
                 self?: string | null;
+            };
+            meta?: {
+                /**
+                 * @description Ids you asked for that were merged into this property, which now answers for them. Absent or null when the property was not reached through such an id.
+                 * @example [
+                 *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
+                 *     ]
+                 * @example [
+                 *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
+                 *     ]
+                 */
+                mergedFrom?: string[] | null;
             };
         };
         "ListingSection.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example ListingSection */
-            type: string;
+            /**
+             * @example Listing
+             * @example Listing
+             * @enum {string}
+             */
+            type: "Listing";
             attributes?: {
                 /**
                  * @description URL to the original listing. Absent when the listing comes from a protected source the caller is not allowed to see.
+                 * @example https://www.example-realestate.com/listings/019dedb1
                  * @example https://www.example-realestate.com/listings/019dedb1
                  */
                 url?: string | null;
                 /**
                  * @description Date the listing was first published (ISO 8601).
                  * @example 2026-04-15T09:00:00+00:00
+                 * @example 2026-04-15T09:00:00+00:00
                  */
                 publishedAt?: string | null;
                 /**
                  * @description Date the listing expired (ISO 8601).
+                 * @example 2026-07-15T09:00:00+00:00
                  * @example 2026-07-15T09:00:00+00:00
                  */
                 expiredAt?: string | null;
                 /**
                  * @description Last date the listing was observed alive at the source (ISO 8601). Surfaces listing freshness for clients.
                  * @example 2026-05-12T08:30:00+00:00
+                 * @example 2026-05-12T08:30:00+00:00
                  */
                 lastSeenAt?: string | null;
                 /**
                  * @description Variant title, present only when it diverges from property.body.title (different normalized hash).
                  * @example Bright 3-room apartment with balcony
+                 * @example Bright 3-room apartment with balcony
                  */
                 title?: string | null;
                 /**
                  * @description Variant description, present only when it diverges from property.body.description (different normalized hash).
+                 * @example Renovated flat on a quiet street, close to transit and shops.
                  * @example Renovated flat on a quiet street, close to transit and shops.
                  */
                 description?: string | null;
@@ -4292,76 +6906,91 @@ export interface components {
                  * @description Crawl creation date (ISO 8601).
                  * @default
                  * @example 2026-04-15T09:05:00+00:00
+                 * @example 2026-04-15T09:05:00+00:00
                  */
                 createdAt: string;
                 /**
                  * @description Crawl last-update date (ISO 8601).
                  * @default
                  * @example 2026-05-12T08:30:00+00:00
+                 * @example 2026-05-12T08:30:00+00:00
                  */
                 updatedAt: string;
                 /**
                  * @description Variant displayed area, present only when it differs from property.area.displayed.
+                 * @example 54
                  * @example 54
                  */
                 area?: number | null;
                 /**
                  * @description Variant rooms count, present only when it differs from property.unit.rooms.
                  * @example 3
+                 * @example 3
                  */
                 rooms?: number | null;
                 /**
                  * @description Variant bedrooms count, present only when it differs from property.unit.bedrooms.
+                 * @example 2
                  * @example 2
                  */
                 bedrooms?: number | null;
                 /**
                  * @description Variant bathrooms count, present only when it differs from property.unit.bathrooms.
                  * @example 1
+                 * @example 1
                  */
                 bathrooms?: number | null;
                 /**
                  * @description Variant shower-rooms count.
+                 * @example 1
                  * @example 1
                  */
                 showerRooms?: number | null;
                 /**
                  * @description Variant WC count.
                  * @example 1
+                 * @example 1
                  */
                 wc?: number | null;
                 /**
                  * @description Variant living-rooms count.
+                 * @example 1
                  * @example 1
                  */
                 livingRooms?: number | null;
                 /**
                  * @description Variant kitchens count.
                  * @example 1
+                 * @example 1
                  */
                 kitchens?: number | null;
                 /**
                  * @description Variant floor number.
+                 * @example 2
                  * @example 2
                  */
                 floor?: number | null;
                 /**
                  * @description Variant last-floor flag.
                  * @example false
+                 * @example false
                  */
                 lastFloor?: boolean | null;
                 /**
                  * @description Variant ground-floor flag.
+                 * @example false
                  * @example false
                  */
                 groundFloor?: boolean | null;
                 /**
                  * @description Variant garden-floor flag.
                  * @example false
+                 * @example false
                  */
                 gardenFloor?: boolean | null;
                 /**
                  * @description Variant condition, present only when it differs from property.unit.condition.
+                 * @example TO_RENOVATE
                  * @example TO_RENOVATE
                  * @enum {string|null}
                  */
@@ -4369,85 +6998,102 @@ export interface components {
                 /**
                  * @description Variant furnished flag.
                  * @example false
+                 * @example false
                  */
                 furnished?: boolean | null;
                 /**
                  * @description Variant disabled-access flag.
+                 * @example false
                  * @example false
                  */
                 disabledAccess?: boolean | null;
                 /**
                  * @description Variant equipped-kitchen flag.
                  * @example true
+                 * @example true
                  */
                 equippedKitchen?: boolean | null;
                 /**
                  * @description Variant fireplace flag.
+                 * @example true
                  * @example true
                  */
                 fireplace?: boolean | null;
                 /**
                  * @description Variant air-conditioning flag.
                  * @example false
+                 * @example false
                  */
                 airConditioning?: boolean | null;
                 /**
                  * @description Variant double-glazing flag.
+                 * @example true
                  * @example true
                  */
                 doubleGlazing?: boolean | null;
                 /**
                  * @description Variant parquet flag.
                  * @example true
+                 * @example true
                  */
                 parquet?: boolean | null;
                 /**
                  * @description Variant balcony flag.
+                 * @example true
                  * @example true
                  */
                 balcony?: boolean | null;
                 /**
                  * @description Variant terrace flag.
                  * @example false
+                 * @example false
                  */
                 terrace?: boolean | null;
                 /**
                  * @description Variant garden flag.
+                 * @example false
                  * @example false
                  */
                 garden?: boolean | null;
                 /**
                  * @description Variant dressing-room flag.
                  * @example true
+                 * @example true
                  */
                 dressing?: boolean | null;
                 /**
                  * @description Variant crossing-apartment flag.
+                 * @example true
                  * @example true
                  */
                 crossing?: boolean | null;
                 /**
                  * @description Variant quiet flag.
                  * @example true
+                 * @example true
                  */
                 quiet?: boolean | null;
                 /**
                  * @description Variant cellar flag.
+                 * @example true
                  * @example true
                  */
                 cellar?: boolean | null;
                 /**
                  * @description Variant basement flag.
                  * @example true
+                 * @example true
                  */
                 basement?: boolean | null;
                 /**
                  * @description Variant storage-room flag.
                  * @example true
+                 * @example true
                  */
                 storage?: boolean | null;
                 /**
                  * @description Variant transaction status, present only when it differs from property.transactionStatus.
+                 * @example SOLD
                  * @example SOLD
                  * @enum {string|null}
                  */
@@ -4455,10 +7101,12 @@ export interface components {
                 /**
                  * @description Variant displayed price, present only when it differs from property.pricing.displayed.
                  * @example 420000
+                 * @example 420000
                  */
                 displayedPrice?: number | null;
                 /**
                  * @description Variant property type (rare, indicates upstream data quality issue).
+                 * @example FLAT
                  * @example FLAT
                  * @enum {string|null}
                  */
@@ -4466,9 +7114,11 @@ export interface components {
                 /**
                  * @description Variant transaction type (rare, indicates upstream data quality issue).
                  * @example SELL
+                 * @example SELL
                  * @enum {string|null}
                  */
                 transactionType?: "SELL" | "RENT" | null;
+                /** @description Source-side marketing signals (favorite count, urgent/boosted/highlighted flags). */
                 marketing?: components["schemas"]["ListingMarketing"] | null;
             };
             relationships?: {
@@ -4476,10 +7126,14 @@ export interface components {
                     data: {
                         /**
                          * @example Publisher
+                         * @example Publisher
                          * @enum {string}
                          */
                         type: "Publisher";
-                        /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                        /**
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
                         id: string;
                     } | null;
                 };
@@ -4487,23 +7141,35 @@ export interface components {
                     data: {
                         /**
                          * @example Source
+                         * @example Source
                          * @enum {string}
                          */
                         type: "Source";
-                        /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                        /**
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
                         id: string;
                     } | null;
                 };
             };
         };
         "PublisherSection.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
-            /** @example PublisherSection */
-            type: string;
+            /**
+             * @example Publisher
+             * @example Publisher
+             * @enum {string}
+             */
+            type: "Publisher";
             attributes?: {
                 /**
                  * @description Publisher type.
+                 * @example REAL_ESTATE_AGENCY
                  * @example REAL_ESTATE_AGENCY
                  * @enum {string|null}
                  */
@@ -4511,29 +7177,39 @@ export interface components {
                 /**
                  * @description Agency name (when applicable).
                  * @example Foncia Paris 18
+                 * @example Foncia Paris 18
                  */
                 agencyName?: string | null;
                 /**
                  * @description Professional card number (FR: carte T).
+                 * @example 12345
                  * @example 12345
                  */
                 professionalCardNumber?: string | null;
                 /**
                  * @description Publisher website.
                  * @example https://www.foncia-paris18.example.com
+                 * @example https://www.foncia-paris18.example.com
                  */
                 website?: string | null;
             };
             links?: {
-                /** @example /publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                /**
+                 * @example /publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 * @example /publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
                 self?: string | null;
             };
         };
         /** @description Source the listing was crawled from, as a JSON:API included resource. */
         "SourceSection.jsonapi": {
-            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
             id: string;
             /**
+             * @example Source
              * @example Source
              * @enum {string}
              */
@@ -4542,22 +7218,332 @@ export interface components {
                 /**
                  * @description URL-friendly identifier of the source.
                  * @example realty-portal
+                 * @example realty-portal
                  */
                 slug?: string;
             };
             links?: {
-                /** @example /sources/3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                /**
+                 * @example /sources/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 * @example /sources/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
                 self?: string | null;
+            };
+        };
+        /** @description What one publisher states on one property: its mandate, its listing reference and its contact. */
+        "PropertyPublisher.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example PropertyPublisher
+             * @example PropertyPublisher
+             * @enum {string}
+             */
+            type: "PropertyPublisher";
+            attributes: {
+                /**
+                 * @description Canonical mandate the publisher uses on this property. Publishers grouped by id; mandate and publishing reference are single canonical values (most frequent + tie-break by most recent listing); contact is the most recently verified one.
+                 * @example EXCLUSIVE
+                 * @example EXCLUSIVE
+                 * @enum {string|null}
+                 */
+                mandate?: "NON_EXCLUSIVE" | "EXCLUSIVE" | "SEMI_EXCLUSIVE" | null;
+                /**
+                 * @description Canonical reference the publisher uses on this property (the agency's internal listing reference, "publishing reference" in legacy parlance).
+                 * @example REF-AB42
+                 * @example REF-AB42
+                 */
+                reference?: string | null;
+                /** @description Most recently verified contact information for this publisher. */
+                contact?: components["schemas"]["Publisher.Contact"] | null;
+            };
+            relationships: {
+                property: {
+                    data: {
+                        /**
+                         * @example Property
+                         * @example Property
+                         * @enum {string}
+                         */
+                        type: "Property";
+                        /**
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    };
+                };
+                publisher: {
+                    data: {
+                        /**
+                         * @example Publisher
+                         * @example Publisher
+                         * @enum {string}
+                         */
+                        type: "Publisher";
+                        /**
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    };
+                };
             };
         };
         /** @description JSON:API document envelope for a single property search result. */
         "PropertySearchResultDocument.jsonapi": {
             data: components["schemas"]["PropertySearchResult.jsonapi"];
             links: {
-                /** @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                /**
+                 * @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 * @example /properties/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
                 self?: string | null;
             };
-            included?: (components["schemas"]["ListingSection.jsonapi"] | components["schemas"]["PublisherSection.jsonapi"] | components["schemas"]["SourceSection.jsonapi"])[];
+            /**
+             * @example [
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Listing",
+             *         "attributes": {
+             *           "url": "https://www.example-realestate.com/listings/019dedb1",
+             *           "publishedAt": "2026-04-15T09:00:00+00:00",
+             *           "expiredAt": "2026-07-15T09:00:00+00:00",
+             *           "lastSeenAt": "2026-05-12T08:30:00+00:00",
+             *           "title": "Bright 3-room apartment with balcony",
+             *           "description": "Renovated flat on a quiet street, close to transit and shops.",
+             *           "createdAt": "2026-04-15T09:05:00+00:00",
+             *           "updatedAt": "2026-05-12T08:30:00+00:00",
+             *           "area": 54,
+             *           "rooms": 3,
+             *           "bedrooms": 2,
+             *           "bathrooms": 1,
+             *           "showerRooms": 1,
+             *           "wc": 1,
+             *           "livingRooms": 1,
+             *           "kitchens": 1,
+             *           "floor": 2,
+             *           "lastFloor": false,
+             *           "groundFloor": false,
+             *           "gardenFloor": false,
+             *           "condition": "TO_RENOVATE",
+             *           "furnished": false,
+             *           "disabledAccess": false,
+             *           "equippedKitchen": true,
+             *           "fireplace": true,
+             *           "airConditioning": false,
+             *           "doubleGlazing": true,
+             *           "parquet": true,
+             *           "balcony": true,
+             *           "terrace": false,
+             *           "garden": false,
+             *           "dressing": true,
+             *           "crossing": true,
+             *           "quiet": true,
+             *           "cellar": true,
+             *           "basement": true,
+             *           "storage": true,
+             *           "transactionStatus": "SOLD",
+             *           "displayedPrice": 420000,
+             *           "propertyType": "FLAT",
+             *           "transactionType": "SELL",
+             *           "marketing": {
+             *             "favorites": 12,
+             *             "urgent": false,
+             *             "boosted": true,
+             *             "highlighted": true
+             *           }
+             *         },
+             *         "relationships": {
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "source": {
+             *             "data": {
+             *               "type": "Source",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Publisher",
+             *         "attributes": {
+             *           "publisherType": "REAL_ESTATE_AGENCY",
+             *           "agencyName": "Foncia Paris 18",
+             *           "professionalCardNumber": "12345",
+             *           "website": "https://www.foncia-paris18.example.com"
+             *         },
+             *         "links": {
+             *           "self": "/publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "PropertyPublisher",
+             *         "attributes": {
+             *           "mandate": "EXCLUSIVE",
+             *           "reference": "REF-AB42",
+             *           "contact": {
+             *             "email": "contact@foncia-paris18.example.com",
+             *             "phone": "+33123456789",
+             *             "profileUrl": "https://www.example-realestate.com/agencies/foncia-paris18"
+             *           }
+             *         },
+             *         "relationships": {
+             *           "property": {
+             *             "data": {
+             *               "type": "Property",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Source",
+             *         "attributes": {
+             *           "slug": "realty-portal"
+             *         },
+             *         "links": {
+             *           "self": "/sources/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       }
+             *     ]
+             * @example [
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Listing",
+             *         "attributes": {
+             *           "url": "https://www.example-realestate.com/listings/019dedb1",
+             *           "publishedAt": "2026-04-15T09:00:00+00:00",
+             *           "expiredAt": "2026-07-15T09:00:00+00:00",
+             *           "lastSeenAt": "2026-05-12T08:30:00+00:00",
+             *           "title": "Bright 3-room apartment with balcony",
+             *           "description": "Renovated flat on a quiet street, close to transit and shops.",
+             *           "createdAt": "2026-04-15T09:05:00+00:00",
+             *           "updatedAt": "2026-05-12T08:30:00+00:00",
+             *           "area": 54,
+             *           "rooms": 3,
+             *           "bedrooms": 2,
+             *           "bathrooms": 1,
+             *           "showerRooms": 1,
+             *           "wc": 1,
+             *           "livingRooms": 1,
+             *           "kitchens": 1,
+             *           "floor": 2,
+             *           "lastFloor": false,
+             *           "groundFloor": false,
+             *           "gardenFloor": false,
+             *           "condition": "TO_RENOVATE",
+             *           "furnished": false,
+             *           "disabledAccess": false,
+             *           "equippedKitchen": true,
+             *           "fireplace": true,
+             *           "airConditioning": false,
+             *           "doubleGlazing": true,
+             *           "parquet": true,
+             *           "balcony": true,
+             *           "terrace": false,
+             *           "garden": false,
+             *           "dressing": true,
+             *           "crossing": true,
+             *           "quiet": true,
+             *           "cellar": true,
+             *           "basement": true,
+             *           "storage": true,
+             *           "transactionStatus": "SOLD",
+             *           "displayedPrice": 420000,
+             *           "propertyType": "FLAT",
+             *           "transactionType": "SELL",
+             *           "marketing": {
+             *             "favorites": 12,
+             *             "urgent": false,
+             *             "boosted": true,
+             *             "highlighted": true
+             *           }
+             *         },
+             *         "relationships": {
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "source": {
+             *             "data": {
+             *               "type": "Source",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Publisher",
+             *         "attributes": {
+             *           "publisherType": "REAL_ESTATE_AGENCY",
+             *           "agencyName": "Foncia Paris 18",
+             *           "professionalCardNumber": "12345",
+             *           "website": "https://www.foncia-paris18.example.com"
+             *         },
+             *         "links": {
+             *           "self": "/publishers/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "PropertyPublisher",
+             *         "attributes": {
+             *           "mandate": "EXCLUSIVE",
+             *           "reference": "REF-AB42",
+             *           "contact": {
+             *             "email": "contact@foncia-paris18.example.com",
+             *             "phone": "+33123456789",
+             *             "profileUrl": "https://www.example-realestate.com/agencies/foncia-paris18"
+             *           }
+             *         },
+             *         "relationships": {
+             *           "property": {
+             *             "data": {
+             *               "type": "Property",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           },
+             *           "publisher": {
+             *             "data": {
+             *               "type": "Publisher",
+             *               "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *             }
+             *           }
+             *         }
+             *       },
+             *       {
+             *         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+             *         "type": "Source",
+             *         "attributes": {
+             *           "slug": "realty-portal"
+             *         },
+             *         "links": {
+             *           "self": "/sources/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+             *         }
+             *       }
+             *     ]
+             */
+            included?: (components["schemas"]["ListingSection.jsonapi"] | components["schemas"]["PublisherSection.jsonapi"] | components["schemas"]["PropertyPublisher.jsonapi"] | components["schemas"]["SourceSection.jsonapi"])[];
         };
         /** @description JSON:API document envelope for a publisher. */
         "PublisherDocument.jsonapi": {
@@ -4648,11 +7634,84 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example EventDestination */
+                            /**
+                             * @example EventDestination
+                             * @example EventDestination
+                             */
                             type: string;
-                            attributes?: components["schemas"]["EventDestination"];
+                            attributes?: {
+                                /**
+                                 * @description Destination type. Optional when your account has a single enabled channel, in which case it is inferred.
+                                 * @example WEBHOOK
+                                 * @example WEBHOOK
+                                 * @enum {string|null}
+                                 */
+                                destinationType?: "WEBHOOK" | "EMAIL" | null;
+                                /**
+                                 * @description Webhook URL (required when type=webhook). Must be HTTPS. See the alertEvent webhook for the payload, signature and retry behaviour.
+                                 * @example https://your-server.com/webhooks/stream
+                                 * @example https://your-server.com/webhooks/stream
+                                 */
+                                url?: string | null;
+                                /**
+                                 * Format: email
+                                 * @description Email address (required when type=email)
+                                 * @example alerts@your-domain.com
+                                 * @example alerts@your-domain.com
+                                 */
+                                email?: string | null;
+                                /**
+                                 * @description Whether this is your account default destination. Pass true to promote as default; the previous default is automatically demoted. Your first destination becomes the default automatically.
+                                 * @default false
+                                 * @example true
+                                 * @example true
+                                 */
+                                isDefault: boolean;
+                                /**
+                                 * @description Circuit breaker status: active or suspended
+                                 * @default ACTIVE
+                                 * @enum {string}
+                                 */
+                                readonly status: "ACTIVE" | "SUSPENDED";
+                                /**
+                                 * @description HMAC signing key for webhook deliveries. Returned a single time: on the response of the POST that creates the first webhook destination of your account (it is not returned for later destinations and cannot be retrieved again — store it securely). Rotate it from your dashboard.
+                                 * @example whsec_abc123...
+                                 * @example whsec_abc123...
+                                 */
+                                readonly signingKey?: string | null;
+                                /**
+                                 * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                                 * @example b75b1473
+                                 * @example b75b1473
+                                 */
+                                readonly signingKeyHint?: string | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                                /**
+                                 * Format: date-time
+                                 * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 */
+                                readonly createdAt?: string | null;
+                                /**
+                                 * Format: date-time
+                                 * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 */
+                                readonly updatedAt?: string | null;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["EventDestination"][];
@@ -4846,13 +7905,20 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example Alert */
+                            /**
+                             * @example Alert
+                             * @example Alert
+                             */
                             type: string;
                             attributes?: {
                                 /**
                                  * @description Alert name
+                                 * @example 2-bedroom apartments in Paris
                                  * @example 2-bedroom apartments in Paris
                                  */
                                 name?: string | null;
@@ -4862,7 +7928,63 @@ export interface operations {
                                  */
                                 enabled: boolean;
                                 /**
-                                 * @description Search criteria tree (nested and/or groups with sets of property filters). Same shape as the POST /properties criteria.
+                                 * @description Search criteria tree (nested and/or groups with sets of property filters). Same shape as the POST /properties criteria. Absent when the alert has no criteria, which means it matches every property except new-build and under-construction ones.
+                                 * @example {
+                                 *       "and": [
+                                 *         {
+                                 *           "property": {
+                                 *             "type": {
+                                 *               "in": [
+                                 *                 "FLAT",
+                                 *                 "HOUSE"
+                                 *               ]
+                                 *             },
+                                 *             "transaction": {
+                                 *               "type": "SELL"
+                                 *             },
+                                 *             "pricing": {
+                                 *               "displayed": {
+                                 *                 "gte": 200000,
+                                 *                 "lte": 450000
+                                 *               }
+                                 *             },
+                                 *             "unit": {
+                                 *               "bedrooms": {
+                                 *                 "gte": 2
+                                 *               }
+                                 *             }
+                                 *           }
+                                 *         },
+                                 *         {
+                                 *           "or": [
+                                 *             {
+                                 *               "property": {
+                                 *                 "locations": {
+                                 *                   "countryCode": "FR",
+                                 *                   "in": {
+                                 *                     "uniqueCodes": [
+                                 *                       "75056"
+                                 *                     ]
+                                 *                   }
+                                 *                 }
+                                 *               }
+                                 *             },
+                                 *             {
+                                 *               "property": {
+                                 *                 "locations": {
+                                 *                   "countryCode": "FR",
+                                 *                   "in": {
+                                 *                     "uniqueCodes": [
+                                 *                       "69123"
+                                 *                     ]
+                                 *                   }
+                                 *                 }
+                                 *               }
+                                 *             }
+                                 *           ]
+                                 *         }
+                                 *       ]
+                                 *     }
                                  * @example {
                                  *       "and": [
                                  *         {
@@ -4923,14 +8045,17 @@ export interface operations {
                                 criteria?: {
                                     [key: string]: unknown;
                                 };
+                                /** @description Notification configuration. Omit it and the alert never notifies: it is what selects the event types you receive. */
                                 notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
                                 /**
                                  * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+                                 * @example whsec_abc123...
                                  * @example whsec_abc123...
                                  */
                                 readonly signingKey?: string | null;
                                 /**
                                  * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                                 * @example b75b1473
                                  * @example b75b1473
                                  */
                                 readonly signingKeyHint?: string | null;
@@ -4938,17 +8063,20 @@ export interface operations {
                                  * Format: uuid
                                  * @description Public unique identifier (UUID).
                                  * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
                                  */
-                                readonly id?: string;
+                                readonly _id?: string;
                                 /**
                                  * Format: date-time
                                  * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
                                  * @example 2026-01-15T10:30:00+00:00
                                  */
                                 readonly createdAt?: string | null;
                                 /**
                                  * Format: date-time
                                  * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
                                  * @example 2026-05-20T14:45:00+00:00
                                  */
                                 readonly updatedAt?: string | null;
@@ -4960,15 +8088,23 @@ export interface operations {
                                      *       "type": "EventDestination",
                                      *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
                                      *     }
+                                     * @example {
+                                     *       "type": "EventDestination",
+                                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
                                      */
                                     data?: null | {
-                                        /** @example EventDestination */
-                                        type?: string;
+                                        /**
+                                         * @example EventDestination
+                                         * @example EventDestination
+                                         */
+                                        type: string;
                                         /**
                                          * Format: iri-reference
                                          * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
                                          */
-                                        id?: string;
+                                        id: string;
                                     };
                                 };
                             };
@@ -5270,20 +8406,36 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example AlertEvent */
+                            /**
+                             * @example AlertEvent
+                             * @example AlertEvent
+                             */
                             type: string;
                             attributes?: {
                                 /**
                                  * @description Event type that triggered notification
-                                 * @example PRICE_CHANGED
+                                 * @example PRICE_CHANGE
+                                 * @example PRICE_CHANGE
                                  * @enum {string}
                                  */
-                                eventType?: "NEW_MATCH" | "ADDITIONAL_LISTING" | "PRICE_CHANGED" | "ANY_ATTRIBUTE_CHANGED" | "LISTING_EXPIRED" | "LISTING_REACTIVATED";
+                                eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+                                /**
+                                 * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did. Both name a listing, so this is the only field that tells them apart.
+                                 * @default PROPERTY
+                                 * @example PROPERTY
+                                 * @example PROPERTY
+                                 * @enum {string}
+                                 */
+                                scope: "PROPERTY" | "LISTING";
                                 /**
                                  * Format: date-time
-                                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert does not subscribe to its type, when it is no longer active, or when no delivery destination could be resolved.
+                                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved. Events matching none of the alert notification rules are never listed here.
+                                 * @example 2026-07-28T09:15:00+00:00
                                  * @example 2026-07-28T09:15:00+00:00
                                  */
                                 notifiedAt?: string | null;
@@ -5291,17 +8443,20 @@ export interface operations {
                                  * Format: uuid
                                  * @description Public unique identifier (UUID).
                                  * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
                                  */
-                                readonly id?: string;
+                                readonly _id?: string;
                                 /**
                                  * Format: date-time
                                  * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
                                  * @example 2026-01-15T10:30:00+00:00
                                  */
                                 readonly createdAt?: string | null;
                                 /**
                                  * Format: date-time
                                  * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
                                  * @example 2026-05-20T14:45:00+00:00
                                  */
                                 readonly updatedAt?: string | null;
@@ -5313,15 +8468,23 @@ export interface operations {
                                      *       "type": "Alert",
                                      *       "id": "/alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6"
                                      *     }
+                                     * @example {
+                                     *       "type": "Alert",
+                                     *       "id": "/alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
                                      */
                                     data?: null | {
-                                        /** @example Alert */
-                                        type?: string;
+                                        /**
+                                         * @example Alert
+                                         * @example Alert
+                                         */
+                                        type: string;
                                         /**
                                          * Format: iri-reference
                                          * @example /alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         * @example /alerts/3fa85f64-5717-4562-b3fc-2c963f66afa6
                                          */
-                                        id?: string;
+                                        id: string;
                                     };
                                 };
                                 property?: {
@@ -5330,21 +8493,29 @@ export interface operations {
                                      *       "type": "Property",
                                      *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
                                      *     }
+                                     * @example {
+                                     *       "type": "Property",
+                                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
                                      */
                                     data?: null | {
-                                        /** @example Property */
-                                        type?: string;
+                                        /**
+                                         * @example Property
+                                         * @example Property
+                                         */
+                                        type: string;
                                         /**
                                          * Format: iri-reference
                                          * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
                                          */
-                                        id?: string;
+                                        id: string;
                                     };
                                 };
                             };
                         }[];
                         /** @description Related resources requested via the "include" query parameter. */
-                        readonly included?: (components["schemas"]["Alert.jsonapi"] | components["schemas"]["PropertySearch.PropertySearchResult.jsonapi"])[];
+                        readonly included?: (components["schemas"]["Alert.jsonapi"] | components["schemas"]["PropertySearchResult.jsonapi"])[];
                     };
                     "application/json": components["schemas"]["AlertEvent"][];
                 };
@@ -5413,6 +8584,71 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+        };
+    };
+    forecastAlert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The criteria of the alert to estimate. */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AlertForecast.AlertForecastInput"];
+            };
+        };
+        responses: {
+            /** @description The estimate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertForecast"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The criteria are invalid, or use a filter alerts do not support */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+            /** @description The estimate could not be computed; retry later */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5515,6 +8751,28 @@ export interface operations {
             query?: {
                 /** @description The collection page number */
                 page?: number;
+                /**
+                 * @description Only notifications created at or before this time. A date alone means 00:00 UTC that day.
+                 * @example 2026-01-31T23:59:59Z
+                 */
+                "createdAt[before]"?: string;
+                /**
+                 * @description Only notifications created before this time. A date alone means 00:00 UTC that day.
+                 * @example 2026-02-01T00:00:00Z
+                 */
+                "createdAt[strictly_before]"?: string;
+                /**
+                 * @description Only notifications created at or after this time. A date alone means 00:00 UTC that day.
+                 * @example 2026-01-01T00:00:00Z
+                 */
+                "createdAt[after]"?: string;
+                /**
+                 * @description Only notifications created after this time. A date alone means 00:00 UTC that day.
+                 * @example 2026-01-01T00:00:00Z
+                 */
+                "createdAt[strictly_after]"?: string;
+                /** @description Restrict to notifications in this delivery status. */
+                status?: "PENDING" | "DELIVERED" | "FAILED" | "SUSPENDED" | "SKIPPED";
             };
             header?: never;
             path?: never;
@@ -5530,11 +8788,78 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example EventNotification */
+                            /**
+                             * @example EventNotification
+                             * @example EventNotification
+                             */
                             type: string;
-                            attributes?: components["schemas"]["EventNotification"];
+                            attributes?: {
+                                /**
+                                 * @description Delivery channel used for this notification.
+                                 * @example WEBHOOK
+                                 * @example WEBHOOK
+                                 * @enum {string}
+                                 */
+                                channel?: "EMAIL" | "WEBHOOK";
+                                /**
+                                 * @description Destination URL or address the notification was sent to.
+                                 * @example https://your-server.com/webhooks/stream
+                                 * @example https://your-server.com/webhooks/stream
+                                 */
+                                readonly destinationAddress?: string;
+                                /**
+                                 * @description Current delivery status.
+                                 * @example DELIVERED
+                                 * @example DELIVERED
+                                 * @enum {string}
+                                 */
+                                status?: "PENDING" | "DELIVERED" | "FAILED" | "SUSPENDED" | "SKIPPED";
+                                /**
+                                 * @description Number of delivery attempts made so far (including retries).
+                                 * @example 1
+                                 * @example 1
+                                 */
+                                readonly attemptNumber?: number;
+                                /**
+                                 * Format: date-time
+                                 * @description Timestamp of the successful delivery; null while pending or when permanently failed.
+                                 * @example 2026-06-03T14:32:10+00:00
+                                 * @example 2026-06-03T14:32:10+00:00
+                                 */
+                                readonly deliveredAt?: string | null;
+                                /**
+                                 * @description Error message from the last failed attempt; null when successfully delivered.
+                                 * @example Connection timed out after 5000ms
+                                 * @example Connection timed out after 5000ms
+                                 */
+                                readonly lastErrorMessage?: string | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                                /**
+                                 * Format: date-time
+                                 * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 */
+                                readonly createdAt?: string | null;
+                                /**
+                                 * Format: date-time
+                                 * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 */
+                                readonly updatedAt?: string | null;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["EventNotification"][];
@@ -5622,11 +8947,32 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example FavoriteProperty */
+                            /**
+                             * @example FavoriteProperty
+                             * @example FavoriteProperty
+                             */
                             type: string;
-                            attributes?: components["schemas"]["FavoriteProperty"];
+                            attributes?: {
+                                /**
+                                 * Format: uuid
+                                 * @description Property id
+                                 * @example 550e8400-e29b-41d4-a716-446655440000
+                                 * @example 550e8400-e29b-41d4-a716-446655440000
+                                 */
+                                propertyId?: string | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["FavoriteProperty"][];
@@ -5834,11 +9180,83 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchemaNoPagination"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example AdministrativeDivision */
+                            /**
+                             * @example AdministrativeDivision
+                             * @example AdministrativeDivision
+                             */
                             type: string;
-                            attributes?: components["schemas"]["AdministrativeDivision"];
+                            attributes?: {
+                                /**
+                                 * @description Human-readable display name.
+                                 * @example Paris
+                                 * @example Paris
+                                 */
+                                name?: string;
+                                /**
+                                 * @description National unique code (INSEE code in France).
+                                 * @example 75056
+                                 * @example 75056
+                                 */
+                                uniqueCode?: string | null;
+                                /**
+                                 * @description Administrative type.
+                                 * @example MUNICIPALITY
+                                 * @example MUNICIPALITY
+                                 * @enum {string|null}
+                                 */
+                                locationType?: "COUNTRY" | "ADMINISTRATIVE_REGION" | "ADMINISTRATIVE_SUBREGION" | "MUNICIPALITY_GROUP" | "MUNICIPALITY" | "MUNICIPAL_DISTRICT" | "NEIGHBORHOOD" | "SUB_MUNICIPALITY" | "SUB_NEIGHBOURHOOD" | null;
+                                /**
+                                 * @description Country the division belongs to.
+                                 * @example FR
+                                 * @example FR
+                                 * @enum {string|null}
+                                 */
+                                countryCode?: "FR" | "BE" | null;
+                                /**
+                                 * @description Postal codes attached to this division.
+                                 * @example [
+                                 *       "75001",
+                                 *       "75002",
+                                 *       "75003"
+                                 *     ]
+                                 * @example [
+                                 *       "75001",
+                                 *       "75002",
+                                 *       "75003"
+                                 *     ]
+                                 */
+                                postalCodes?: string[] | null;
+                                /**
+                                 * @description GeoJSON (RFC 7946) Point (centroid).
+                                 * @example {
+                                 *       "type": "Point",
+                                 *       "coordinates": [
+                                 *         2.3522,
+                                 *         48.8566
+                                 *       ]
+                                 *     }
+                                 * @example {
+                                 *       "type": "Point",
+                                 *       "coordinates": [
+                                 *         2.3522,
+                                 *         48.8566
+                                 *       ]
+                                 *     }
+                                 */
+                                centroid?: components["schemas"]["GeoJsonGeometry"] | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["AdministrativeDivision"][];
@@ -5875,6 +9293,11 @@ export interface operations {
                  * @example false
                  */
                 includeSelf?: boolean;
+                /**
+                 * @description Number of items per page, from 1 to 100. A value outside that range is brought back to the nearest bound.
+                 * @example 30
+                 */
+                size?: number;
                 /** @description The collection page number */
                 page?: number;
             };
@@ -5898,11 +9321,83 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example AdministrativeDivision */
+                            /**
+                             * @example AdministrativeDivision
+                             * @example AdministrativeDivision
+                             */
                             type: string;
-                            attributes?: components["schemas"]["AdministrativeDivision"];
+                            attributes?: {
+                                /**
+                                 * @description Human-readable display name.
+                                 * @example Paris
+                                 * @example Paris
+                                 */
+                                name?: string;
+                                /**
+                                 * @description National unique code (INSEE code in France).
+                                 * @example 75056
+                                 * @example 75056
+                                 */
+                                uniqueCode?: string | null;
+                                /**
+                                 * @description Administrative type.
+                                 * @example MUNICIPALITY
+                                 * @example MUNICIPALITY
+                                 * @enum {string|null}
+                                 */
+                                locationType?: "COUNTRY" | "ADMINISTRATIVE_REGION" | "ADMINISTRATIVE_SUBREGION" | "MUNICIPALITY_GROUP" | "MUNICIPALITY" | "MUNICIPAL_DISTRICT" | "NEIGHBORHOOD" | "SUB_MUNICIPALITY" | "SUB_NEIGHBOURHOOD" | null;
+                                /**
+                                 * @description Country the division belongs to.
+                                 * @example FR
+                                 * @example FR
+                                 * @enum {string|null}
+                                 */
+                                countryCode?: "FR" | "BE" | null;
+                                /**
+                                 * @description Postal codes attached to this division.
+                                 * @example [
+                                 *       "75001",
+                                 *       "75002",
+                                 *       "75003"
+                                 *     ]
+                                 * @example [
+                                 *       "75001",
+                                 *       "75002",
+                                 *       "75003"
+                                 *     ]
+                                 */
+                                postalCodes?: string[] | null;
+                                /**
+                                 * @description GeoJSON (RFC 7946) Point (centroid).
+                                 * @example {
+                                 *       "type": "Point",
+                                 *       "coordinates": [
+                                 *         2.3522,
+                                 *         48.8566
+                                 *       ]
+                                 *     }
+                                 * @example {
+                                 *       "type": "Point",
+                                 *       "coordinates": [
+                                 *         2.3522,
+                                 *         48.8566
+                                 *       ]
+                                 *     }
+                                 */
+                                centroid?: components["schemas"]["GeoJsonGeometry"] | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["AdministrativeDivision"][];
@@ -5974,7 +9469,7 @@ export interface operations {
         parameters: {
             query: {
                 /**
-                 * @description Search query string (minimum 1 character).
+                 * @description Search query string (minimum 1 character): a name, a postal code prefix, the code of an administrative subregion (a French department number such as 83), or a usual abbreviation such as PACA.
                  * @example paris
                  */
                 query: string;
@@ -6005,11 +9500,107 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example LocationAutocomplete */
+                            /**
+                             * @example LocationAutocomplete
+                             * @example LocationAutocomplete
+                             */
                             type: string;
-                            attributes?: components["schemas"]["LocationAutocomplete.LocationSuggestion"];
+                            attributes?: {
+                                /**
+                                 * @description Human-readable display name.
+                                 * @example Paris
+                                 * @example Paris
+                                 */
+                                name?: string;
+                                /**
+                                 * @description Administrative type.
+                                 * @example MUNICIPALITY
+                                 * @example MUNICIPALITY
+                                 * @enum {string|null}
+                                 */
+                                locationType?: "COUNTRY" | "ADMINISTRATIVE_REGION" | "ADMINISTRATIVE_SUBREGION" | "MUNICIPALITY_GROUP" | "MUNICIPALITY" | "MUNICIPAL_DISTRICT" | "NEIGHBORHOOD" | "SUB_MUNICIPALITY" | "SUB_NEIGHBOURHOOD" | null;
+                                /**
+                                 * @description Immediate parent name (e.g. department for a city).
+                                 * @example Paris
+                                 * @example Paris
+                                 */
+                                parentName?: string | null;
+                                /**
+                                 * @description Region name, for disambiguation.
+                                 * @example Île-de-France
+                                 * @example Île-de-France
+                                 */
+                                regionName?: string | null;
+                                /**
+                                 * @description Country the division belongs to.
+                                 * @example FR
+                                 * @example FR
+                                 * @enum {string|null}
+                                 */
+                                countryCode?: "FR" | "BE" | null;
+                                /**
+                                 * @description Primary postal code.
+                                 * @example 75001
+                                 * @example 75001
+                                 */
+                                postalCode?: string | null;
+                                /**
+                                 * @description GeoJSON (RFC 7946) Point for map marker placement.
+                                 * @example {
+                                 *       "type": "Point",
+                                 *       "coordinates": [
+                                 *         2.3522,
+                                 *         48.8566
+                                 *       ]
+                                 *     }
+                                 * @example {
+                                 *       "type": "Point",
+                                 *       "coordinates": [
+                                 *         2.3522,
+                                 *         48.8566
+                                 *       ]
+                                 *     }
+                                 */
+                                centroid?: components["schemas"]["GeoJsonGeometry"] | null;
+                                /**
+                                 * @description Additional data (population, hierarchy depth, postal codes, uniqueCode, …).
+                                 * @example {
+                                 *       "depth": 3,
+                                 *       "population": 2102650,
+                                 *       "postalCodes": [
+                                 *         "75001",
+                                 *         "75002",
+                                 *         "75003"
+                                 *       ],
+                                 *       "uniqueCode": "75056"
+                                 *     }
+                                 * @example {
+                                 *       "depth": 3,
+                                 *       "population": 2102650,
+                                 *       "postalCodes": [
+                                 *         "75001",
+                                 *         "75002",
+                                 *         "75003"
+                                 *       ],
+                                 *       "uniqueCode": "75056"
+                                 *     }
+                                 */
+                                metadata?: {
+                                    [key: string]: string | null;
+                                };
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                _id?: string;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["LocationAutocomplete.LocationSuggestion"][];
@@ -6035,7 +9626,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Property search request. The criteria field is a recursive tree — see the three examples below for the progression from flat to composed. */
+        /** @description Property search request. The criteria field is a recursive tree — see the examples below, from a flat filter bag to a composed tree. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PropertySearch.PropertySearchRequestInput"];
@@ -6045,13 +9636,13 @@ export interface operations {
             /** @description Search results matching the criteria */
             200: {
                 headers: {
-                    /** @description Credits this call cost. Absent when the account is not billed in credits. */
+                    /** @description Credits this call cost, one per result returned. A search that matches nothing costs nothing and reports 0. Absent when the account is not billed in credits. */
                     "X-Credits-Charged"?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/vnd.api+json": components["schemas"]["PropertySearch.PropertySearchResponse.jsonapi"];
-                    "application/json": components["schemas"]["PropertySearch.PropertySearchResponse"];
+                    "application/json": components["schemas"]["PropertySearchResult"][];
                 };
             };
             /** @description Invalid input */
@@ -6114,7 +9705,7 @@ export interface operations {
             /** @description The property */
             200: {
                 headers: {
-                    /** @description Credits this call cost. Absent when the account is not billed in credits. */
+                    /** @description Credits this call cost. A flat price per property read. Absent when the account is not billed in credits. */
                     "X-Credits-Charged"?: string;
                     [name: string]: unknown;
                 };
@@ -6151,6 +9742,161 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+        };
+    };
+    lookupPropertyByUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The listing URL to look up. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PropertyUrlLookup.PropertyUrlLookupInput"];
+            };
+        };
+        responses: {
+            /** @description The property published at the URL */
+            200: {
+                headers: {
+                    /** @description Credits this call cost: one credit for a match, while a URL we do not know answers 404 and costs nothing. Absent when the account is not billed in credits. */
+                    "X-Credits-Charged"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["PropertyUrlLookup.jsonapi"];
+                    "application/json": components["schemas"]["PropertyUrlLookup"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Credit balance exhausted. The call was not served and was not charged; top up to resume. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No property is known at this URL. Not charged. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The url is missing or is not a valid http or https URL. Not charged. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    resolvePropertyAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Property id
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The resolution, found or not */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyAddressResolution"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unknown property */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The property is outside the countries covered */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+            /** @description This account resolved too many addresses in the last minute; retry after the delay given */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A source did not answer; retry later */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6223,11 +9969,31 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example SourceCategory */
+                            /**
+                             * @example SourceCategory
+                             * @example SourceCategory
+                             */
                             type: string;
-                            attributes?: components["schemas"]["SourceCategory"];
+                            attributes?: {
+                                /**
+                                 * @description Human-readable category name.
+                                 * @example Real Estate Networks
+                                 * @example Real Estate Networks
+                                 */
+                                name?: string;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["SourceCategory"][];
@@ -6320,11 +10086,35 @@ export interface operations {
                 content: {
                     "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
                         data?: {
-                            /** @example 3fa85f64-5717-4562-b3fc-2c963f66afa6 */
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
                             id: string;
-                            /** @example Source */
+                            /**
+                             * @example Source
+                             * @example Source
+                             */
                             type: string;
-                            attributes?: components["schemas"]["Source"];
+                            attributes?: {
+                                /**
+                                 * @example Realty Portal
+                                 * @example Realty Portal
+                                 */
+                                name?: string;
+                                /**
+                                 * @example realty-portal.com
+                                 * @example realty-portal.com
+                                 */
+                                domain?: string;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                            };
                         }[];
                     };
                     "application/json": components["schemas"]["Source"][];
@@ -6731,13 +10521,13 @@ export interface operations {
                  *           },
                  *           "pictures": [
                  *             {
-                 *               "url": "https://pictures.stream.estate/019dedb1-aaa1.png"
+                 *               "url": "https://cdn.stream.estate/storage/properties/2026/10/14/01/019dedb1-aaa1-7c3d-8e4f-5a6b7c8d9e01.webp"
                  *             },
                  *             {
-                 *               "url": "https://pictures.stream.estate/019dedb1-aaa2.png"
+                 *               "url": "https://cdn.stream.estate/storage/properties/2026/10/14/01/019dedb1-aaa2-7c3d-8e4f-5a6b7c8d9e02.webp"
                  *             },
                  *             {
-                 *               "url": "https://pictures.stream.estate/019dedb1-aaa3.png"
+                 *               "url": "https://cdn.stream.estate/storage/properties/2026/10/14/01/019dedb1-aaa3-7c3d-8e4f-5a6b7c8d9e03.webp"
                  *             }
                  *           ]
                  *         },
@@ -6807,7 +10597,7 @@ export interface operations {
                      * @description Type of alert event that triggered the notification.
                      * @enum {string}
                      */
-                    eventType: "NEW_MATCH" | "ADDITIONAL_LISTING" | "PRICE_CHANGED" | "ANY_ATTRIBUTE_CHANGED" | "LISTING_EXPIRED" | "LISTING_REACTIVATED";
+                    eventType: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
                     /**
                      * Format: uuid
                      * @description Unique identifier of this delivery. The same eventId may be delivered more than once on retry — use it as your idempotency key.
@@ -6829,7 +10619,7 @@ export interface operations {
                          */
                         id: string;
                     };
-                    /** @description Full property representation — the exact body returned by GET /properties/{id}. Embedded so you can ingest the match without an extra (billed) API call. It reflects the freshest indexed state at delivery time, not a point-in-time snapshot of the event. Protected sources are masked according to your account permissions, exactly as on the API. */
+                    /** @description Full property representation: the body GET /properties/{id} returns for the property's own id, with fields that have no value present as null. Embedded so you can ingest the match without an extra (billed) API call. It reflects the freshest indexed state at delivery time, not a point-in-time snapshot of the event. Protected sources are masked according to your account permissions, exactly as on the API. */
                     data: {
                         [key: string]: unknown;
                     };
