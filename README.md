@@ -24,6 +24,9 @@ Flags: `--yes`, `--env-file <path>`, `--no-env`, `--skip-test`, `--help`. Exits 
 
 ## Quickstart
 
+You need an API V2 key: create an account at https://console.stream.estate/signup, then a key at
+https://console.stream.estate/api-keys. Usage is billed in credits: every returned property costs one.
+
 ```ts
 import { StreamEstate } from "@streamestate/sdk";
 
