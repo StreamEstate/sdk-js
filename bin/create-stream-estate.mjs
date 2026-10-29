@@ -62,7 +62,8 @@ ${c.bold("What it does")}
      and prints the HTTP status, how long it took, and a one-line sample.
   3. Prints where to go next.
 
-Get a key at ${c.cyan(SIGNUP_URL)} — the API V2 is free during the beta.
+Create an account at ${c.cyan(SIGNUP_URL)}, then a key at ${c.cyan(KEYS_URL)}.
+Usage is billed in credits: every returned property costs one.
 `;
 
 function parseArgs(argv) {
