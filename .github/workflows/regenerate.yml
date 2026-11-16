@@ -42,8 +42,14 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           main_version=$(node -p "require('./package.json').version")
           echo "main_version=$main_version" >> "$GITHUB_OUTPUT"
-          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]; then
+          # Seule compte la PR que cette tâche a ouverte depuis ce dépôt : une
+          # PR venue d'une copie extérieure, sur une branche du même nom, est ignorée.
+          number=$(gh pr list --head "$BRANCH" --state open --app github-actions \
+            --json number,isCrossRepository,author \
+            --jq '[.[] | select(.isCrossRepository == false and .author.login == "app/github-actions")][0].number // empty')
+          if [ -n "$number" ] && git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
             echo "open_pr=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$number" >> "$GITHUB_OUTPUT"
             git switch "$BRANCH"
             git merge --no-edit origin/main
           else
@@ -94,6 +100,7 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         env:
           OPEN_PR: ${{ steps.branch.outputs.open_pr }}
+          PR_NUMBER: ${{ steps.branch.outputs.pr_number }}
           BUILD_OK: ${{ steps.build.outputs.ok }}
         run: |
           version=$(node -p "require('./package.json').version")
@@ -120,7 +127,7 @@ jobs:
             "À relire avant de fusionner : un champ renommé ou retiré casse le code des clients. Une nouvelle route demande une méthode écrite à la main dans src/index.ts." \
             "La fusion publie la version sur npm (publish.yml).")
           if [ "$OPEN_PR" = "true" ]; then
-            gh pr edit "$BRANCH" --title "$title" --body "$body"
+            gh pr edit "$PR_NUMBER" --title "$title" --body "$body"
           else
             gh pr create --base main --head "$BRANCH" --title "$title" --body "$body"
           fi
