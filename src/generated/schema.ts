@@ -87,7 +87,7 @@ export interface paths {
         put?: never;
         /**
          * Create alert
-         * @description Create a new alert. The criteria tree combines and/or groups with sets of property filters.
+         * @description Create a new alert. The criteria tree combines and/or groups with sets of property filters. A rule that the alert's destination cannot carry, such as MERGED on an email destination, returns 422.
          */
         post: operations["createAlert"];
         delete?: never;
@@ -110,7 +110,7 @@ export interface paths {
         get: operations["getAlert"];
         /**
          * Update alert
-         * @description Update an existing alert. Only the fields present in the body change: omit a field to keep its stored value, or send a nullable field as null to clear it. Same criteria tree shape as POST. Any update that would leave the alert enabled with no destination of its own returns 422 when your account has no default destination, whether or not the update is what enabled it. Sending notificationDestination as null returns 422 whenever your account has no default destination, for a disabled alert too.
+         * @description Update an existing alert. Only the fields present in the body change: omit a field to keep its stored value, or send a nullable field as null to clear it. Same criteria tree shape as POST. A body that names the rules or the destination returns 422 when a rule cannot be carried by the destination the alert will have, such as MERGED on an email destination. Any update that would leave the alert enabled with no destination of its own returns 422 when your account has no default destination, whether or not the update is what enabled it. Sending notificationDestination as null returns 422 whenever your account has no default destination, for a disabled alert too.
          */
         put: operations["updateAlert"];
         post?: never;
@@ -1400,7 +1400,7 @@ export interface components {
             scope: "PROPERTY" | "LISTING";
             /**
              * Format: date-time
-             * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved. Events matching none of the alert notification rules are never listed here.
+             * @description Date this event was processed for delivery, null while it is still queued. An event still null 24 hours after it was created will not be sent. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved, or when the destination cannot carry the event type. Events matching none of the alert notification rules are never listed here.
              * @example 2026-07-28T09:15:00+00:00
              * @example 2026-07-28T09:15:00+00:00
              */
@@ -1457,7 +1457,7 @@ export interface components {
                 scope: "PROPERTY" | "LISTING";
                 /**
                  * Format: date-time
-                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved. Events matching none of the alert notification rules are never listed here.
+                 * @description Date this event was processed for delivery, null while it is still queued. An event still null 24 hours after it was created will not be sent. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved, or when the destination cannot carry the event type. Events matching none of the alert notification rules are never listed here.
                  * @example 2026-07-28T09:15:00+00:00
                  * @example 2026-07-28T09:15:00+00:00
                  */
@@ -1582,7 +1582,7 @@ export interface components {
         };
         AlertNotificationRule: {
             /**
-             * @description Which event notifies. NEW_MATCH: the subject enters your search perimeter. PRICE_CHANGE: its price changes. OTHER_CHANGE: another attribute changes. EXPIRED: it leaves the market. REACTIVATED: it returns to the market, also when you were never told about it, so subscribe to both NEW_MATCH and REACTIVATED to hear of every subject entering your search. MERGED: a property you were told about turned out to be the same as another one and was merged into it. MERGED cannot be subscribed to yet: it opens, for scope PROPERTY, with the new alert engine. An event type with no rule never notifies, so add a rule for every event you want to receive. OTHER_CHANGE covers every watched attribute except how precisely we placed the property: a coordinate moving inside the same commune is not a change to the advert.
+             * @description Which event notifies. NEW_MATCH: the subject enters your search perimeter. PRICE_CHANGE: its price changes. OTHER_CHANGE: another attribute changes. EXPIRED: it leaves the market. REACTIVATED: it returns to the market, also when you were never told about it, so subscribe to both NEW_MATCH and REACTIVATED to hear of every subject entering your search. MERGED: a property you were told about turned out to be the same as another one and was merged into it; the event describes the property it was merged into, and is available for scope PROPERTY only and for alerts delivered by webhook only: an alert whose destination is an email address cannot subscribe to it. An event type with no rule never notifies, so add a rule for every event you want to receive. OTHER_CHANGE covers every watched attribute except how precisely we placed the property: a coordinate moving inside the same commune is not a change to the advert.
              * @example PRICE_CHANGE
              * @example PRICE_CHANGE
              * @enum {string|null}
@@ -1914,7 +1914,7 @@ export interface components {
              */
             results?: number;
             /**
-             * @description Credits this route cost over the period. Absent when the account is not billed in credits, and when the report is filtered by API key or channel. A route whose calls fall into more than one category carries the whole cost on its first row and zero on the others, so the column still adds up to the total. A row showing no calls is a charge posted in this period for a call made before it.
+             * @description Credits this route cost over the period. Absent when your plan does not charge credits per call, and when the report is filtered by API key or channel. A route whose calls fall into more than one category carries the whole cost on its first row and zero on the others, so the column still adds up to the total. A row showing no calls is a charge posted in this period for a call made before it.
              * @example 26310
              * @example 26310
              */
@@ -2043,7 +2043,7 @@ export interface components {
              */
             results?: number;
             /**
-             * @description Credits these calls cost over the period. Absent when the account is not billed in credits, and when the report is filtered by API key or channel, because a charge is recorded against the account and not against either.
+             * @description Credits these calls cost over the period. Absent when your plan does not charge credits per call, and when the report is filtered by API key or channel, because a charge is recorded against the account and not against either.
              * @example 48230
              * @example 48230
              */
@@ -3083,7 +3083,7 @@ export interface components {
              */
             id: string;
             /**
-             * @description URL to the original listing. Absent when the listing comes from a protected source the caller is not allowed to see.
+             * @description URL to the original listing.
              * @example https://www.example-realestate.com/listings/019dedb1
              * @example https://www.example-realestate.com/listings/019dedb1
              */
@@ -6867,7 +6867,7 @@ export interface components {
             type: "Listing";
             attributes?: {
                 /**
-                 * @description URL to the original listing. Absent when the listing comes from a protected source the caller is not allowed to see.
+                 * @description URL to the original listing.
                  * @example https://www.example-realestate.com/listings/019dedb1
                  * @example https://www.example-realestate.com/listings/019dedb1
                  */
@@ -8434,7 +8434,7 @@ export interface operations {
                                 scope: "PROPERTY" | "LISTING";
                                 /**
                                  * Format: date-time
-                                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved. Events matching none of the alert notification rules are never listed here.
+                                 * @description Date this event was processed for delivery, null while it is still queued. An event still null 24 hours after it was created will not be sent. A processed event has no notification when the alert is no longer active, or when no delivery destination could be resolved, or when the destination cannot carry the event type. Events matching none of the alert notification rules are never listed here.
                                  * @example 2026-07-28T09:15:00+00:00
                                  * @example 2026-07-28T09:15:00+00:00
                                  */
@@ -9636,7 +9636,7 @@ export interface operations {
             /** @description Search results matching the criteria */
             200: {
                 headers: {
-                    /** @description Credits this call cost, one per result returned. A search that matches nothing costs nothing and reports 0. Absent when the account is not billed in credits. */
+                    /** @description Credits this call cost. A search that matches nothing costs nothing and reports 0. Sent only when your plan charges credits per call. */
                     "X-Credits-Charged"?: string;
                     [name: string]: unknown;
                 };
@@ -9705,7 +9705,7 @@ export interface operations {
             /** @description The property */
             200: {
                 headers: {
-                    /** @description Credits this call cost. A flat price per property read. Absent when the account is not billed in credits. */
+                    /** @description Credits this call cost. A flat price per property read. Sent only when your plan charges credits per call. */
                     "X-Credits-Charged"?: string;
                     [name: string]: unknown;
                 };
@@ -9762,7 +9762,7 @@ export interface operations {
             /** @description The property published at the URL */
             200: {
                 headers: {
-                    /** @description Credits this call cost: one credit for a match, while a URL we do not know answers 404 and costs nothing. Absent when the account is not billed in credits. */
+                    /** @description Credits this call cost. A URL we do not know answers 404 and costs nothing. Sent only when your plan charges credits per call. */
                     "X-Credits-Charged"?: string;
                     [name: string]: unknown;
                 };
@@ -10619,7 +10619,7 @@ export interface operations {
                          */
                         id: string;
                     };
-                    /** @description Full property representation: the body GET /properties/{id} returns for the property's own id, with fields that have no value present as null. Embedded so you can ingest the match without an extra (billed) API call. It reflects the freshest indexed state at delivery time, not a point-in-time snapshot of the event. Protected sources are masked according to your account permissions, exactly as on the API. */
+                    /** @description Full property representation: the body GET /properties/{id} returns for the property's own id, with fields that have no value present as null. Embedded so you can ingest the match without an extra (billed) API call. It reflects the freshest indexed state at delivery time, not a point-in-time snapshot of the event. */
                     data: {
                         [key: string]: unknown;
                     };
