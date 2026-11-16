@@ -1,0 +1,73 @@
+# Chaque nuit, régénère les types depuis la spec publiée par la doc.
+# Si elle a changé, ouvre (ou met à jour) une PR avec la version augmentée.
+# Rien n'est publié ici : la publication part de publish.yml, à la fusion.
+name: Mise à jour du schéma
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: regenerate
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: auto/mise-a-jour-schema
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Régénérer les types
+        run: npm run generate
+
+      - name: Comparer avec main
+        id: diff
+        run: |
+          if git diff --quiet -- src/generated/schema.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Aucun écart avec la spec en ligne."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- src/generated/schema.ts
+          fi
+
+      - name: Augmenter la version et compiler
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          npm version prerelease --preid beta --no-git-tag-version
+          npm run build
+
+      - name: Pousser la branche et ouvrir la PR
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git add package.json package-lock.json src/generated/schema.ts
+          git commit -m "chore: régénérer le schéma depuis la doc en ligne ($version)"
+          git push --force origin "$BRANCH"
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "Types régénérés depuis https://next.docs.stream.estate/openapi.json, version $version." \
+            "À relire avant de fusionner : un champ renommé ou retiré casse le code des clients. Une nouvelle route demande une méthode écrite à la main dans src/index.ts." \
+            "La fusion publie la version sur npm (publish.yml).")
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]; then
+            gh pr edit "$BRANCH" --title "chore: régénérer le schéma depuis la doc en ligne ($version)" --body "$body"
+          else
+            gh pr create --base main --head "$BRANCH" --title "chore: régénérer le schéma depuis la doc en ligne ($version)" --body "$body"
+          fi

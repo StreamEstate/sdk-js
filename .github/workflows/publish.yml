@@ -1,0 +1,58 @@
+# Publie sur npm la version de package.json quand elle n'y est pas encore.
+# Pas de clé : npm fait confiance à ce fichier (publication de confiance,
+# réglée sur npmjs.com pour StreamEstate/sdk-js et publish.yml).
+name: Publication npm
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # 11.5.1 au moins pour publier sans clé, 11.21.0 pour poser une étiquette.
+      - run: npm install -g npm@11.21.0
+
+      - name: Version déjà publiée ?
+        id: check
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          echo "spec=$name@$version" >> "$GITHUB_OUTPUT"
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "$name@$version est déjà sur npm."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.check.outputs.publish == 'true'
+        run: npm ci --ignore-scripts
+
+      # prepack compile le paquet avant l'envoi.
+      - if: steps.check.outputs.publish == 'true'
+        run: npm publish --tag latest
+
+      # Le README fait installer @beta : l'étiquette suit la dernière version.
+      - if: steps.check.outputs.publish == 'true'
+        env:
+          SPEC: ${{ steps.check.outputs.spec }}
+        run: npm dist-tag add "$SPEC" beta
