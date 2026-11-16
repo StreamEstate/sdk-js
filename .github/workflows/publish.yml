@@ -28,7 +28,7 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      # 11.5.1 au moins pour publier sans clé, 11.21.0 pour poser une étiquette.
+      # 11.5.1 au moins pour publier sans clé.
       - run: npm install -g npm@11.21.0
 
       - name: Version déjà publiée ?
@@ -47,12 +47,7 @@ jobs:
       - if: steps.check.outputs.publish == 'true'
         run: npm ci --ignore-scripts
 
-      # prepack compile le paquet avant l'envoi.
+      # prepack compile le paquet avant l'envoi ; étiquette `latest`, celle de `npm install @streamestate/sdk`.
+      # Pas d'autre étiquette : la publication de confiance n'autorise ici que `npm publish`.
       - if: steps.check.outputs.publish == 'true'
-        run: npm publish --tag latest
-
-      # Le README fait installer @beta : l'étiquette suit la dernière version.
-      - if: steps.check.outputs.publish == 'true'
-        env:
-          SPEC: ${{ steps.check.outputs.spec }}
-        run: npm dist-tag add "$SPEC" beta
+        run: npm publish

@@ -9,7 +9,7 @@ listings deduplicated across sources, recorded sales, saved-search alerts and ad
 ## Install
 
 ```bash
-npm install @streamestate/sdk@beta
+npm install @streamestate/sdk
 ```
 
 ## One-command setup
