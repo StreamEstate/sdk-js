@@ -1,5 +1,6 @@
 # Chaque nuit, régénère les types depuis la spec publiée par la doc.
-# Si elle a changé, ouvre (ou met à jour) une PR avec la version augmentée.
+# Si elle a changé, ouvre une PR avec la version augmentée, ou complète celle
+# qui est déjà ouverte sans effacer ce qui y a été ajouté à la main.
 # Rien n'est publié ici : la publication part de publish.yml, à la fusion.
 name: Mise à jour du schéma
 
@@ -24,18 +25,38 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
           cache: npm
 
+      # Une PR déjà ouverte : on repart de sa branche, à jour de main, pour
+      # garder les ajouts faits à la main. Sinon, on part de main.
+      - name: Choisir la branche de travail
+        id: branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          main_version=$(node -p "require('./package.json').version")
+          echo "main_version=$main_version" >> "$GITHUB_OUTPUT"
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]; then
+            echo "open_pr=true" >> "$GITHUB_OUTPUT"
+            git switch "$BRANCH"
+            git merge --no-edit origin/main
+          else
+            echo "open_pr=false" >> "$GITHUB_OUTPUT"
+            git switch -C "$BRANCH"
+          fi
+
       - run: npm ci --ignore-scripts
 
       - name: Régénérer les types
         run: npm run generate
 
-      - name: Comparer avec main
+      - name: Comparer avec la branche de travail
         id: diff
         run: |
           if git diff --quiet -- src/generated/schema.ts; then
@@ -46,28 +67,64 @@ jobs:
             git diff --stat -- src/generated/schema.ts
           fi
 
-      - name: Augmenter la version et compiler
+      # La version n'augmente qu'une fois par PR.
+      - name: Augmenter la version
         if: steps.diff.outputs.changed == 'true'
+        env:
+          MAIN_VERSION: ${{ steps.branch.outputs.main_version }}
         run: |
-          npm version prerelease --preid beta --no-git-tag-version
-          npm run build
+          if [ "$(node -p "require('./package.json').version")" = "$MAIN_VERSION" ]; then
+            npm version prerelease --preid beta --no-git-tag-version
+          fi
+
+      # Une compilation cassée (champ renommé ou retiré) ouvre quand même la
+      # PR, signalée dans son titre ; la tâche finit ensuite en rouge.
+      - name: Compiler
+        if: steps.diff.outputs.changed == 'true'
+        id: build
+        run: |
+          if npm run build > build.log 2>&1; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            cat build.log
+          fi
 
       - name: Pousser la branche et ouvrir la PR
         if: steps.diff.outputs.changed == 'true'
+        env:
+          OPEN_PR: ${{ steps.branch.outputs.open_pr }}
+          BUILD_OK: ${{ steps.build.outputs.ok }}
         run: |
           version=$(node -p "require('./package.json').version")
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -C "$BRANCH"
           git add package.json package-lock.json src/generated/schema.ts
           git commit -m "chore: régénérer le schéma depuis la doc en ligne ($version)"
-          git push --force origin "$BRANCH"
-          body=$(printf '%s\n\n%s\n\n%s\n' \
-            "Types régénérés depuis https://next.docs.stream.estate/openapi.json, version $version." \
+          if [ "$OPEN_PR" = "true" ]; then
+            git push origin "$BRANCH"
+          else
+            git push --force origin "$BRANCH"
+          fi
+          title="chore: régénérer le schéma depuis la doc en ligne ($version)"
+          intro="Types régénérés depuis https://next.docs.stream.estate/openapi.json, version $version."
+          if [ "$BUILD_OK" != "true" ]; then
+            title="⚠️ compilation cassée — $title"
+            intro="$intro
+
+          **La compilation échoue** : un champ utilisé par \`src/index.ts\` a changé. Corriger \`src/index.ts\` sur cette branche avant de fusionner.
+
+          \`\`\`
+          $(tail -n 40 build.log)
+          \`\`\`"
+          fi
+          body=$(printf '%s\n\n%s\n\n%s\n' "$intro" \
             "À relire avant de fusionner : un champ renommé ou retiré casse le code des clients. Une nouvelle route demande une méthode écrite à la main dans src/index.ts." \
             "La fusion publie la version sur npm (publish.yml).")
-          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]; then
-            gh pr edit "$BRANCH" --title "chore: régénérer le schéma depuis la doc en ligne ($version)" --body "$body"
+          if [ "$OPEN_PR" = "true" ]; then
+            gh pr edit "$BRANCH" --title "$title" --body "$body"
           else
-            gh pr create --base main --head "$BRANCH" --title "chore: régénérer le schéma depuis la doc en ligne ($version)" --body "$body"
+            gh pr create --base main --head "$BRANCH" --title "$title" --body "$body"
+          fi
+          if [ "$BUILD_OK" != "true" ]; then
+            echo "::error::Compilation cassée : la PR est ouverte avec le journal."
+            exit 1
           fi
