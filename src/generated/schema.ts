@@ -10619,7 +10619,7 @@ export interface operations {
                          */
                         id: string;
                     };
-                    /** @description Full property representation: the body GET /properties/{id} returns for the property's own id, with fields that have no value present as null. Embedded so you can ingest the match without an extra (billed) API call. It reflects the freshest indexed state at delivery time, not a point-in-time snapshot of the event. */
+                    /** @description Full property representation: the body GET /properties/{id} returns for the property's own id, with fields that have no value present as null. Embedded so you can process the match without an extra (billed) API call. It reflects the property's state at delivery time, not a point-in-time snapshot of the event. */
                     data: {
                         [key: string]: unknown;
                     };
