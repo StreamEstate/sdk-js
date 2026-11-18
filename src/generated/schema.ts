@@ -192,8 +192,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get aggregated listing warehouse analytics
-         * @description Query immutable market warehouse data with filters, grouping, time buckets, and aggregate metrics.
+         * Get aggregated listing analytics
+         * @description Query listing market data with filters, grouping, time buckets, and aggregate metrics.
          */
         get: operations["getListingAnalytics"];
         put?: never;
@@ -459,7 +459,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve the address of a property
-         * @description Finds the exact postal address of a property from the data its listings carry: the energy certificate registry first, then the national address base around a precise location. Beta: the matching is being tuned and the confidence bands may move. A result is returned whatever the outcome; read the confidence before showing the address. EXACT and HIGH can be shown as the address, MEDIUM and LOW as a probable address, NONE means nothing was found. Covers properties located in France; other countries are refused.
+         * @description Finds the exact postal address of a property. Beta: the confidence bands may change. A result is returned whatever the outcome; read the confidence before showing the address. EXACT and HIGH can be shown as the address, MEDIUM and LOW as a probable address, NONE means nothing was found. Covers properties located in France; other countries are refused.
          */
         post: operations["resolvePropertyAddress"];
         delete?: never;
@@ -599,7 +599,7 @@ export interface paths {
         put?: never;
         /**
          * Search transactions
-         * @description Search closed real-estate transactions with optional filters (date, property type, price, location ids, and a GeoJSON polygon), cursor-paginated. Overlapping records from different sources are reconciled on the fly: a duplicate is suppressed and merged into the surviving row, which then carries a matched block. Filters are sent in the request body rather than the query string so a large geoshape polygon is not constrained by URL length.
+         * @description Search closed real-estate transactions with optional filters (date, property type, price, location ids, and a GeoJSON polygon), cursor-paginated. A transaction reported by more than one source is returned once, with a matched block. Filters are sent in the request body rather than the query string so a large geoshape polygon is not constrained by URL length.
          */
         post: operations["searchTransactions"];
         delete?: never;
@@ -817,12 +817,7 @@ export interface components {
              */
             postalCodes?: string[];
         };
-        /**
-         * @description Contours of an administrative division, split out of the division resource (#44): the raw boundary of a
-         *     large region dominated that payload (seconds, megabytes), while most callers only need the metadata.
-         *     The boundary served here is the simplified copy precomputed at import, read as GeoJSON from the database
-         *     so no boundary is ever hydrated into PHP geometry objects.
-         */
+        /** @description Boundary of an administrative division, as GeoJSON. */
         AdministrativeDivisionGeometry: {
             /**
              * @description GeoJSON (RFC 7946) Polygon or MultiPolygon of the administrative boundary.
@@ -1530,10 +1525,7 @@ export interface components {
                 };
             };
         };
-        /**
-         * @description How many new matches alert criteria would have sent over the last days, so a client can size an alert
-         *     before saving it. Computed on every call; writes nothing and is not billed.
-         */
+        /** @description Estimated number of notifications an alert with given criteria would send. */
         AlertForecast: {
             /**
              * @description Number of whole days the estimate is computed over.
@@ -1900,7 +1892,7 @@ export interface components {
              * @example search
              * @enum {string}
              */
-            routeType?: "search" | "analytics" | "admin" | "mcp" | "other";
+            routeType?: "search" | "analytics" | "mcp" | "other";
             /**
              * @description Number of API calls made to this route over the period.
              * @example 26310
@@ -2016,7 +2008,7 @@ export interface components {
              * @example search
              * @enum {string|null}
              */
-            routeType?: "search" | "analytics" | "admin" | "mcp" | "other" | null;
+            routeType?: "search" | "analytics" | "mcp" | "other" | null;
             /**
              * @description Channel the calls were issued through. Set when groupBy is channel.
              * @example DIRECT
@@ -2055,7 +2047,7 @@ export interface components {
         };
         AreaSection: {
             /**
-             * @description Headline surface for the property. Per-dimension value most listings report, surfaces within 2 % counting as one (recency tie-break, largest when no two listings agree): living, total, terrace, balcony, garden, basement, parking, land. displayed is the headline surface — indoor living, fallback to indoor total.
+             * @description Headline surface of the property: its living area, or its total indoor area when the living area is unknown.
              * @example 56
              * @example 56
              */
@@ -2078,13 +2070,13 @@ export interface components {
         };
         BodySection: {
             /**
-             * @description Canonical listing title. Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash.
+             * @description Title of the property.
              * @example Beautiful flat in Paris
              * @example Beautiful flat in Paris
              */
             title?: string | null;
             /**
-             * @description Canonical listing description. Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash.
+             * @description Description of the property.
              * @example Renovated flat on a quiet street, close to transit and shops.
              * @example Renovated flat on a quiet street, close to transit and shops.
              */
@@ -2112,7 +2104,7 @@ export interface components {
              */
             renovationYear?: number | null;
             /**
-             * @description Building construction type (Haussmannian, modern, …). Most-frequent + recency tie-break.
+             * @description Building construction type (Haussmannian, modern, …).
              * @example HAUSSMANNIAN
              * @example HAUSSMANNIAN
              * @enum {string|null}
@@ -2211,7 +2203,7 @@ export interface components {
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
-            /** @description Per-category breakdown deduplicated across listings. */
+            /** @description Per-category breakdown deduplicated across the listings the price is taken from. */
             details?: components["schemas"]["Pricing.ChargeDetail"][];
         };
         Condominium: {
@@ -2235,7 +2227,7 @@ export interface components {
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
-            /** @description Per-category breakdown deduplicated across listings. */
+            /** @description Per-category breakdown deduplicated across the listings the price is taken from. */
             breakdown?: components["schemas"]["CondominiumFee"][];
         };
         CondominiumFee: {
@@ -3109,26 +3101,26 @@ export interface components {
              */
             lastSeenAt?: string | null;
             /**
-             * @description Variant title, present only when it diverges from property.body.title (different normalized hash).
+             * @description Title of this listing, present only when it differs from property.body.title.
              * @example Bright 3-room apartment with balcony
              * @example Bright 3-room apartment with balcony
              */
             title?: string | null;
             /**
-             * @description Variant description, present only when it diverges from property.body.description (different normalized hash).
+             * @description Description of this listing, present only when it differs from property.body.description.
              * @example Renovated flat on a quiet street, close to transit and shops.
              * @example Renovated flat on a quiet street, close to transit and shops.
              */
             description?: string | null;
             /**
-             * @description Crawl creation date (ISO 8601).
+             * @description Date the listing was first recorded by Stream Estate (ISO 8601).
              * @default
              * @example 2026-04-15T09:05:00+00:00
              * @example 2026-04-15T09:05:00+00:00
              */
             createdAt: string;
             /**
-             * @description Crawl last-update date (ISO 8601).
+             * @description Date the listing was last updated by Stream Estate (ISO 8601).
              * @default
              * @example 2026-05-12T08:30:00+00:00
              * @example 2026-05-12T08:30:00+00:00
@@ -3339,7 +3331,7 @@ export interface components {
             /** @description Source-side marketing signals (favorite count, urgent/boosted/highlighted flags). */
             marketing?: components["schemas"]["ListingMarketing"] | null;
         };
-        /** @description API Platform resource for location autocomplete. */
+        /** @description Location suggestions for a search query: administrative divisions such as municipalities, departments or regions. */
         "LocationAutocomplete.LocationSuggestion": {
             /**
              * @description Human-readable display name.
@@ -3628,13 +3620,13 @@ export interface components {
         };
         PricingSection: {
             /**
-             * @description Canonical displayed price. Headline price (most frequent, recency tie-break) plus full sale/rental fee breakdowns. Each fee is the one most listings report (recency tie-break); breakdown arrays deduplicated by (type, amount).
+             * @description Displayed price of the property, taken from its listings still online, or from the ones online last when none is, leaving out those whose price looks incoherent with the local market unless all do.
              * @example 400000
              * @example 400000
              */
             displayed?: number | null;
             /**
-             * @description Majority currency across listings.
+             * @description Majority currency across the listings the price is taken from.
              * @example EUR
              * @example EUR
              * @enum {string|null}
@@ -3645,10 +3637,7 @@ export interface components {
             /** @description Full rental-side pricing tree (only emitted when transaction.type is RENT). */
             rental?: components["schemas"]["Pricing.RentalPricing"] | null;
         };
-        /**
-         * @description Beta. Resolves the exact postal address of a property from what its listings carry, through an
-         *     ordered chain of sources per country. France only for now.
-         */
+        /** @description Exact postal address of a property, with a confidence level. */
         PropertyAddressResolution: {
             /**
              * @description How sure the resolution is. EXACT: the certificate reference was found in the registry. HIGH: a certificate matches the characteristics and a coincidence is unlikely. MEDIUM and LOW: a probable address. NONE: no address; address and method are null.
@@ -3982,14 +3971,14 @@ export interface components {
         };
         PropertySection: {
             /**
-             * @description Crawl creation date (ISO 8601).
+             * @description Date the property was first recorded by Stream Estate (ISO 8601).
              * @default
              * @example 2025-01-15T10:30:00+00:00
              * @example 2025-01-15T10:30:00+00:00
              */
             createdAt: string;
             /**
-             * @description Crawl last-update date (ISO 8601).
+             * @description Date the property was last updated by Stream Estate (ISO 8601).
              * @default
              * @example 2025-06-15T12:00:00+00:00
              * @example 2025-06-15T12:00:00+00:00
@@ -4003,36 +3992,36 @@ export interface components {
              */
             expired: boolean;
             /**
-             * @description Property type. Most frequent property type across listings; ties resolved by the most recently created listing.
+             * @description Property type.
              * @example FLAT
              * @example FLAT
              * @enum {string|null}
              */
             propertyType?: "FLAT" | "HOUSE" | "BUILDING" | "PARKING" | "OFFICE" | "LAND" | "SHOP" | "COMMERCIAL_PREMISES" | null;
             /**
-             * @description Construction status of the property. Most frequent construction status across listings; ties resolved by the most recently created listing.
+             * @description Construction status of the property.
              * @example OLD
              * @example OLD
              * @enum {string|null}
              */
             constructionStatus?: "OLD" | "NEW" | "UNDER_CONSTRUCTION" | null;
-            /** @description Transaction summary (type, status, mandate, saleType, availableAt). Bundles transaction type (most frequent), status (strongest by precedence), saleType (most-frequent + recency) and availableAt (most recent). */
+            /** @description Transaction summary (type, status, mandate, saleType, availableAt). */
             transaction?: components["schemas"]["TransactionSection"] | null;
-            /** @description Aggregated area breakdown — headline displayed surface plus indoor / outdoor / annexes / land sub-sections. Per-dimension value most listings report, surfaces within 2 % counting as one (recency tie-break, largest when no two listings agree): living, total, terrace, balcony, garden, basement, parking, land. displayed is the headline surface — indoor living, fallback to indoor total. */
+            /** @description Area breakdown: headline displayed surface plus indoor, outdoor, annexes and land sub-sections. */
             area?: components["schemas"]["AreaSection"] | null;
-            /** @description Unit-level facets (counters, floor flags, condition, orientation, feature booleans, parking). Counters take the value most listings report (recency tie-break, max when no two listings agree), logical OR for booleans, union for orientation, most-frequent + recency tie-break for condition. */
+            /** @description Unit-level facets (counters, floor flags, condition, orientation, feature booleans, parking). */
             unit?: components["schemas"]["UnitSection"] | null;
-            /** @description Building-level facets (construction year, condition, floors, legal status). Value most listings report for constructionYear / renovationYear / floors / numberOfLots (recency tie-break; min for constructionYear and max for the others when no two listings agree), most-frequent + recency for constructionType / condition / energy, logical OR for legalStatus.underLegalProceedings. */
+            /** @description Building-level facets (construction year, condition, floors, legal status). */
             building?: components["schemas"]["BuildingSection"] | null;
-            /** @description Residence-level amenities (elevator, pool, caretaker, parking facility, connectivity). Logical OR for boolean amenities, most-frequent + recency for parking.type, value most listings report for parking.spaces (recency tie-break, max when no two listings agree), deduplicated union for connectivity. */
+            /** @description Residence-level amenities (elevator, pool, caretaker, parking facility, connectivity). */
             amenities?: components["schemas"]["AmenitiesSection"] | null;
-            /** @description Canonical body (title + description). Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash. */
+            /** @description Title and description of the property. */
             body?: components["schemas"]["BodySection"] | null;
-            /** @description Pricing summary. Headline price (most frequent, recency tie-break) plus full sale/rental fee breakdowns. Each fee is the one most listings report (recency tie-break); breakdown arrays deduplicated by (type, amount). */
+            /** @description Pricing summary: headline price plus sale and rental fee breakdowns. */
             pricing?: components["schemas"]["PricingSection"] | null;
-            /** @description Location summary (geometry + administrative slots). Location built from the most precisely localized listing. Coordinates are the listing geo-point when accuracy is PRECISE or STREET, otherwise the centroid of the deepest qualified administrative division. The administrativeDivisions list reflects that division's root→leaf hierarchy. */
+            /** @description Location summary (geometry and administrative divisions). Coordinates are the property's own point when accuracy is PRECISE or STREET, otherwise the centre of the smallest known administrative division. */
             location?: components["schemas"]["LocationSection"] | null;
-            /** @description Deduplicated pictures across all listings of the property. Union of all listings' pictures, collapsed via perceptual-hash Hamming distance (≤ 10 bits). Canonical per cluster: lowest position, then earliest createdAt. */
+            /** @description Pictures of the property, gathered from all its listings, each picture once. */
             pictures?: components["schemas"]["Listing.Picture"][];
             /** @description Recent attribute changes across the property listings (price drops, area changes, update markers), newest first. */
             changes?: components["schemas"]["ChangeSection"][];
@@ -4066,10 +4055,7 @@ export interface components {
              */
             paidBy?: "BUYER" | "SELLER" | "OWNER" | "TENANT" | null;
         };
-        /**
-         * @description Points at the property a listing URL belongs to, without its data: reading the property is a second,
-         *     separately priced call. A match costs one result; a URL we do not know answers 404 and costs nothing.
-         */
+        /** @description The property a listing URL belongs to. */
         PropertyUrlLookup: {
             /**
              * @description Id of the property published at the URL.
@@ -4085,10 +4071,7 @@ export interface components {
              */
             property?: string;
         };
-        /**
-         * @description Points at the property a listing URL belongs to, without its data: reading the property is a second,
-         *     separately priced call. A match costs one result; a URL we do not know answers 404 and costs nothing.
-         */
+        /** @description The property a listing URL belongs to. */
         "PropertyUrlLookup.PropertyUrlLookupInput": {
             /**
              * Format: uri
@@ -4272,7 +4255,7 @@ export interface components {
              */
             website?: string | null;
             /**
-             * @description Canonical mandate the publisher uses on this property. Publishers grouped by id; mandate and publishing reference are single canonical values (most frequent + tie-break by most recent listing); contact is the most recently verified one.
+             * @description Mandate the publisher holds on this property.
              * @example EXCLUSIVE
              * @example EXCLUSIVE
              * @enum {string|null}
@@ -4346,7 +4329,7 @@ export interface components {
         };
         Source: {
             /**
-             * @description Display name of the source the listing was crawled from.
+             * @description Display name of the source publishing the listing.
              * @example Realty Portal
              * @example Realty Portal
              */
@@ -4378,7 +4361,7 @@ export interface components {
             type: string;
             attributes?: {
                 /**
-                 * @description Display name of the source the listing was crawled from.
+                 * @description Display name of the source publishing the listing.
                  * @example Realty Portal
                  * @example Realty Portal
                  */
@@ -4585,23 +4568,9 @@ export interface components {
                 updatedAt?: string | null;
                 /** @description Present when a duplicate from another source was reconciled into this row. */
                 matched?: components["schemas"]["TransactionMatch"] | null;
-                /**
-                 * @description Raw source payload. Returned on the item endpoint only, and only to authorized service accounts.
-                 * @example {
-                 *       "id_mutation": "2024-123456",
-                 *       "type_local": "Appartement"
-                 *     }
-                 * @example {
-                 *       "id_mutation": "2024-123456",
-                 *       "type_local": "Appartement"
-                 *     }
-                 */
-                sourcePayload?: {
-                    [key: string]: unknown;
-                };
             };
         };
-        /** @description Public API for closed real-estate transactions. */
+        /** @description Closed real-estate transactions. */
         "Transaction.TransactionSearchRequestInput": {
             /** @description Filter by mutation date range (inclusive). */
             dateMutation?: components["schemas"]["DateMutationRange"] | null;
@@ -4710,8 +4679,8 @@ export interface components {
              */
             id?: string;
             /**
-             * @example Transaction.TransactionSearchRequestInput
-             * @example Transaction.TransactionSearchRequestInput
+             * @example Transaction.TransactionSearchRequest
+             * @example Transaction.TransactionSearchRequest
              */
             type: string;
             attributes?: {
@@ -4816,7 +4785,7 @@ export interface components {
                 page?: components["schemas"]["TransactionPage"] | null;
             };
         };
-        /** @description Public API for closed real-estate transactions. */
+        /** @description Closed real-estate transactions. */
         "Transaction.TransactionSearchResponse": {
             /** @description Transactions matching the search on this page. */
             data?: components["schemas"]["TransactionResult"][];
@@ -5096,20 +5065,6 @@ export interface components {
             updatedAt?: string | null;
             /** @description Present when a duplicate from another source was reconciled into this row. */
             matched?: components["schemas"]["TransactionMatch"] | null;
-            /**
-             * @description Raw source payload. Returned on the item endpoint only, and only to authorized service accounts.
-             * @example {
-             *       "id_mutation": "2024-123456",
-             *       "type_local": "Appartement"
-             *     }
-             * @example {
-             *       "id_mutation": "2024-123456",
-             *       "type_local": "Appartement"
-             *     }
-             */
-            sourcePayload?: {
-                [key: string]: unknown;
-            };
         };
         TransactionSearchMeta: {
             /**
@@ -5142,7 +5097,7 @@ export interface components {
              */
             status?: "AVAILABLE" | "UNDER_OFFER" | "SOLD" | "RENTED" | "WITHDRAWN" | null;
             /**
-             * @description Canonical sale type (standard, life annuity, …). Most-frequent + recency tie-break.
+             * @description Sale type (standard, life annuity, …).
              * @example STANDARD
              * @example STANDARD
              * @enum {string|null}
@@ -5371,7 +5326,7 @@ export interface components {
              */
             orientation?: ("NORTH" | "NORTH_EAST" | "EAST" | "SOUTH_EAST" | "SOUTH" | "SOUTH_WEST" | "WEST" | "NORTH_WEST")[];
             /**
-             * @description Canonical condition (most frequent across listings, recency tie-break).
+             * @description Condition of the unit.
              * @example GOOD
              * @example GOOD
              * @enum {string|null}
@@ -5475,7 +5430,7 @@ export interface components {
             storage?: boolean | null;
             /** @description Parking facet — total count and individual spots with type / box flag. */
             parking?: components["schemas"]["Unit.Parking"] | null;
-            /** @description Canonical regulatory diagnostic (DPE / audit) — most-filled across listings, recency tie-break. */
+            /** @description Regulatory diagnostic of the unit (DPE, energy audit). */
             diagnostic?: components["schemas"]["UnitDiagnostic"] | null;
             /** @description Energy equipment (heating systems / carriers) attached to the canonical diagnostic's source listing. */
             energy?: components["schemas"]["UnitEnergy"] | null;
@@ -5669,7 +5624,7 @@ export interface components {
         };
         NullableFloatRange: {
             /**
-             * @description When true, also match properties whose indexed field is missing. Default false (strict).
+             * @description When true, also match properties for which this value is unknown. Default false (strict).
              * @default false
              * @example false
              * @example false
@@ -5816,7 +5771,7 @@ export interface components {
         };
         LocationsSet: {
             /**
-             * @description Administrative division ids; matches the materialized path so descendants are included automatically.
+             * @description Administrative division ids; the divisions they contain are included automatically.
              * @example [
              *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
              *     ]
@@ -5879,7 +5834,7 @@ export interface components {
             /** @description Unit-interior feature filters (in / nin / inOrMissing). */
             features?: components["schemas"]["UnitFeatureFilters"] | null;
             /**
-             * @description Number of rooms range. Opt-in orMissing to keep properties without an indexed room count.
+             * @description Number of rooms range. Opt-in orMissing to keep properties whose room count is unknown.
              * @example {
              *       "gte": 2,
              *       "lte": 5
@@ -5891,7 +5846,7 @@ export interface components {
              */
             rooms?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Number of bedrooms range. Opt-in orMissing to keep properties without an indexed bedroom count.
+             * @description Number of bedrooms range. Opt-in orMissing to keep properties whose bedroom count is unknown.
              * @example {
              *       "gte": 1,
              *       "lte": 3
@@ -5903,7 +5858,7 @@ export interface components {
              */
             bedrooms?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Floor number range. Opt-in orMissing to keep properties without an indexed floor (e.g. houses).
+             * @description Floor number range. Opt-in orMissing to keep properties whose floor is unknown (e.g. houses).
              * @example {
              *       "gte": 1,
              *       "lte": 5
@@ -5925,7 +5880,7 @@ export interface components {
         };
         UnitFeatureFilters: {
             /**
-             * @description Features the property must have (strict — feature must be indexed as true).
+             * @description Features the property must have (strict: a property that does not report the feature is excluded).
              * @example [
              *       "BALCONY",
              *       "TERRACE"
@@ -5959,7 +5914,7 @@ export interface components {
         };
         NullableIntRange: {
             /**
-             * @description When true, also match properties whose indexed field is missing. Default false (strict).
+             * @description When true, also match properties for which this value is unknown. Default false (strict).
              * @default false
              * @example false
              * @example false
@@ -6243,7 +6198,7 @@ export interface components {
         };
         BuildingFilters: {
             /**
-             * @description Construction year range. Opt-in orMissing to keep properties without an indexed construction year.
+             * @description Construction year range. Opt-in orMissing to keep properties whose construction year is unknown.
              * @example {
              *       "gte": 1900,
              *       "lte": 2024
@@ -6255,7 +6210,7 @@ export interface components {
              */
             constructionYear?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Renovation year range. Opt-in orMissing to keep properties without an indexed renovation year.
+             * @description Renovation year range. Opt-in orMissing to keep properties whose renovation year is unknown.
              * @example {
              *       "gte": 2010
              *     }
@@ -6265,7 +6220,7 @@ export interface components {
              */
             renovationYear?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Number of lots range (condominium size). Opt-in orMissing to keep properties without an indexed lot count.
+             * @description Number of lots range (condominium size). Opt-in orMissing to keep properties whose lot count is unknown.
              * @example {
              *       "gte": 10,
              *       "lte": 100
@@ -6277,7 +6232,7 @@ export interface components {
              */
             numberOfLots?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Total number of floors in the building (distinct from unit.floor which is the dwelling's floor). Opt-in orMissing to keep properties without an indexed floor count.
+             * @description Total number of floors in the building (distinct from unit.floor which is the dwelling's floor). Opt-in orMissing to keep properties whose floor count is unknown.
              * @example {
              *       "gte": 3,
              *       "lte": 8
@@ -6335,7 +6290,7 @@ export interface components {
         };
         AmenityFeatureFilters: {
             /**
-             * @description Amenities the property must have (strict — amenity must be indexed as true).
+             * @description Amenities the property must have (strict: a property that does not report the amenity is excluded).
              * @example [
              *       "ELEVATOR",
              *       "PARKING"
@@ -6518,7 +6473,7 @@ export interface components {
             /** @description Restrict to expired listings, optionally within an expiry date range (from / to). Setting this filter includes expired listings, which search hides by default. Targets listings.expiredAt. */
             expiredAt?: components["schemas"]["DateRange"] | null;
             /**
-             * @description Whether listing prices look coherent with the local market. Defaults to true: properties whose listings are all price-incoherent are hidden from results. Set false to return only those properties. Judged across the whole property rather than per listing.
+             * @description Whether listing prices look coherent with the local market. Defaults to true: properties whose price comes only from price-incoherent listings are hidden from results. Set false to return only those properties. Judged across the whole property rather than per listing.
              * @default true
              * @example false
              * @example false
@@ -6676,7 +6631,7 @@ export interface components {
              * @example eyJzb3J0IjpbMTc3ODg0NDY0MzAwMCwiMDE5Z
              */
             cursor?: string | null;
-            /** @description Sort directive (field + direction). Defaults to updatedAt DESC when omitted. A tiebreaker is appended for stable pagination. */
+            /** @description Sort directive (field + direction). Defaults to updatedAt DESC when omitted. Results keep a stable order from one page to the next. */
             sort?: components["schemas"]["Sort"] | null;
         };
         Sort: {
@@ -6891,26 +6846,26 @@ export interface components {
                  */
                 lastSeenAt?: string | null;
                 /**
-                 * @description Variant title, present only when it diverges from property.body.title (different normalized hash).
+                 * @description Title of this listing, present only when it differs from property.body.title.
                  * @example Bright 3-room apartment with balcony
                  * @example Bright 3-room apartment with balcony
                  */
                 title?: string | null;
                 /**
-                 * @description Variant description, present only when it diverges from property.body.description (different normalized hash).
+                 * @description Description of this listing, present only when it differs from property.body.description.
                  * @example Renovated flat on a quiet street, close to transit and shops.
                  * @example Renovated flat on a quiet street, close to transit and shops.
                  */
                 description?: string | null;
                 /**
-                 * @description Crawl creation date (ISO 8601).
+                 * @description Date the listing was first recorded by Stream Estate (ISO 8601).
                  * @default
                  * @example 2026-04-15T09:05:00+00:00
                  * @example 2026-04-15T09:05:00+00:00
                  */
                 createdAt: string;
                 /**
-                 * @description Crawl last-update date (ISO 8601).
+                 * @description Date the listing was last updated by Stream Estate (ISO 8601).
                  * @default
                  * @example 2026-05-12T08:30:00+00:00
                  * @example 2026-05-12T08:30:00+00:00
@@ -7201,7 +7156,7 @@ export interface components {
                 self?: string | null;
             };
         };
-        /** @description Source the listing was crawled from, as a JSON:API included resource. */
+        /** @description Source publishing the listing, as a JSON:API included resource. */
         "SourceSection.jsonapi": {
             /**
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -7245,7 +7200,7 @@ export interface components {
             type: "PropertyPublisher";
             attributes: {
                 /**
-                 * @description Canonical mandate the publisher uses on this property. Publishers grouped by id; mandate and publishing reference are single canonical values (most frequent + tie-break by most recent listing); contact is the most recently verified one.
+                 * @description Mandate the publisher holds on this property.
                  * @example EXCLUSIVE
                  * @example EXCLUSIVE
                  * @enum {string|null}
@@ -8665,7 +8620,7 @@ export interface operations {
                 district_id?: number[];
                 /** @description Neighborhood IDs filter (multi-value). */
                 neighborhood_id?: number[];
-                /** @description Warehouse event type filter (multi-value). */
+                /** @description Event type filter (multi-value). */
                 event_type?: ("CREATED" | "UPDATED" | "EXPIRED" | "REACTIVATED")[];
                 /** @description Inclusive start date for event_at. */
                 event_at_from?: string;
