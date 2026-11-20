@@ -72,6 +72,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/account/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report a problem
+         * @description Records a problem met with the service, for the team to read. The report is not answered.
+         */
+        post: operations["reportFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/alerts": {
         parameters: {
             query?: never;
@@ -2735,6 +2755,98 @@ export interface components {
                 propertyId: string | null;
             };
         };
+        /** @description A problem report sent to the Stream Estate team. */
+        Feedback: {
+            /**
+             * @description Feedback identifier.
+             * @example 0193b8c2-7e4a-7c3a-9f1d-2b6e5a4c8d10
+             * @example 0193b8c2-7e4a-7c3a-9f1d-2b6e5a4c8d10
+             */
+            id?: string;
+            /**
+             * Format: date-time
+             * @description When the feedback was recorded.
+             * @example 2026-11-19T10:30:00+00:00
+             * @example 2026-11-19T10:30:00+00:00
+             */
+            createdAt?: string | null;
+        };
+        /** @description A problem report sent to the Stream Estate team. */
+        "Feedback.FeedbackInput": {
+            /**
+             * @description What happened, and what was expected instead.
+             * @default
+             * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+             * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+             */
+            message: string;
+            /**
+             * @description What the feedback is about, such as the name of the tool or the page concerned.
+             * @example create_alert
+             * @example create_alert
+             */
+            subject?: string | null;
+            /**
+             * @description A change the sender suggests, if any.
+             * @example List the allowed delivery channels in the error message.
+             * @example List the allowed delivery channels in the error message.
+             */
+            proposedFix?: string | null;
+        };
+        "Feedback.FeedbackInput.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id?: string;
+            /**
+             * @example Feedback.Feedback
+             * @example Feedback.Feedback
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * @description What happened, and what was expected instead.
+                 * @default
+                 * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+                 * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+                 */
+                message: string;
+                /**
+                 * @description What the feedback is about, such as the name of the tool or the page concerned.
+                 * @example create_alert
+                 * @example create_alert
+                 */
+                subject?: string | null;
+                /**
+                 * @description A change the sender suggests, if any.
+                 * @example List the allowed delivery channels in the error message.
+                 * @example List the allowed delivery channels in the error message.
+                 */
+                proposedFix?: string | null;
+            };
+        };
+        "Feedback.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example Feedback
+             * @example Feedback
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: date-time
+                 * @description When the feedback was recorded.
+                 * @example 2026-11-19T10:30:00+00:00
+                 * @example 2026-11-19T10:30:00+00:00
+                 */
+                createdAt?: string | null;
+            };
+        };
         GeoJsonGeometry: {
             /**
              * @description GeoJSON geometry type, spelled exactly as in RFC 7946 and case-sensitive: Point, Polygon or MultiPolygon.
@@ -3952,7 +4064,7 @@ export interface components {
              * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
              */
             id: string;
-            /** @description Aggregated canonical view of the property (carries the property timestamps). */
+            /** @description Aggregated canonical view of the property (carries the property timestamps). Each characteristic comes from the listings still online that state it, or from the ones online last when none does; the location comes from the most precise listing, the energy diagnostic from the most complete listing that agrees with it, and the law of a legal area that names none from a listing stating the same surface. */
             property?: components["schemas"]["PropertySection"];
             /** @description Deduplicated publishers across all listings of the property. */
             publishers?: components["schemas"]["PublisherSection"][];
@@ -5450,7 +5562,7 @@ export interface components {
             property?: components["schemas"]["PropertyFacetFilters"] | null;
             /** @description Publisher filters (type, mandate, references, contact-presence) — all clauses apply to the SAME publisher (intra-publisher semantic). For cross-publisher independent matching, combine multiple publisher blocks via and: at the criteria tree level. */
             publisher?: components["schemas"]["PublisherFilters"] | null;
-            /** @description Listing-level filters targeting the nested listings.* (url, sources, marketing flags) — all clauses apply to the SAME listing. */
+            /** @description Listing-level filters (sources, marketing flags, expiry, price coherence). Sources, marketing flags and expiry apply to the SAME listing; price coherence applies to the property. */
             listings?: components["schemas"]["ListingsFilters"] | null;
             /** @description Date-range filters on createdAt and updatedAt. */
             dates?: components["schemas"]["DatesFilters"] | null;
@@ -6459,13 +6571,6 @@ export interface components {
             nin?: ("NON_EXCLUSIVE" | "EXCLUSIVE" | "SEMI_EXCLUSIVE")[];
         };
         ListingsFilters: {
-            /**
-             * Format: uri
-             * @description Listing URL, with or without a trailing slash. An exact match is not required: when the search matches nothing, the URL is resolved from the information it carries. Alerts match the exact URL only. Targets listings.url.
-             * @example https://www.real-estate.io/ventes_immobilieres/123456789.html
-             * @example https://www.real-estate.io/ventes_immobilieres/123456789.html
-             */
-            url?: string | null;
             /** @description Source filter (in / nin by source id). Targets listings.source.id. */
             sources?: components["schemas"]["SourceFilters"] | null;
             /** @description Marketing filters on the listing (favorites count, urgent / boosted / highlighted flags). */
@@ -6714,7 +6819,7 @@ export interface components {
             property?: components["schemas"]["Alert.PropertyFacetFilters"] | null;
             /** @description Publisher filters (type, mandate, references, contact-presence) — all clauses apply to the SAME publisher (intra-publisher semantic). For cross-publisher independent matching, combine multiple publisher blocks via and: at the criteria tree level. */
             publisher?: components["schemas"]["PublisherFilters"] | null;
-            /** @description Listing-level filters targeting the nested listings.* (url, sources, marketing flags) — all clauses apply to the SAME listing. */
+            /** @description Listing-level filters (sources, marketing flags, expiry, price coherence). Sources, marketing flags and expiry apply to the SAME listing; price coherence applies to the property. */
             listings?: components["schemas"]["ListingsFilters"] | null;
         };
         "Alert.AndNode": {
@@ -6739,7 +6844,7 @@ export interface components {
              * @enum {string}
              */
             type: "Property";
-            /** @description Aggregated canonical view of the property (carries the property timestamps). */
+            /** @description Aggregated canonical view of the property (carries the property timestamps). Each characteristic comes from the listings still online that state it, or from the ones online last when none does; the location comes from the most precise listing, the energy diagnostic from the most complete listing that agrees with it, and the law of a legal area that names none from a listing stating the same surface. */
             attributes?: components["schemas"]["PropertySection"];
             relationships?: {
                 listings: {
@@ -7840,6 +7945,73 @@ export interface operations {
             };
         };
     };
+    reportFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Feedback resource */
+        requestBody: {
+            content: {
+                "application/vnd.api+json": components["schemas"]["Feedback.FeedbackInput.jsonapi"];
+                "application/json": components["schemas"]["Feedback.FeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description The feedback is recorded for the team. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Feedback.jsonapi"];
+                    "application/json": components["schemas"]["Feedback"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The message is empty, or a field is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+            /** @description This account sent too much feedback. The error detail says how many seconds to wait. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listAlerts: {
         parameters: {
             query?: {
@@ -8565,7 +8737,7 @@ export interface operations {
                     "application/json": components["schemas"]["AlertForecast"];
                 };
             };
-            /** @description Invalid input */
+            /** @description The body carries a field the estimate does not accept */
             400: {
                 headers: {
                     [name: string]: unknown;
