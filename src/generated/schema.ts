@@ -72,6 +72,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/account/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report a problem
+         * @description Records a problem met with the service, for the team to read. The report is not answered.
+         */
+        post: operations["reportFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/alerts": {
         parameters: {
             query?: never;
@@ -116,7 +136,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an alert
-         * @description Delete an alert
+         * @description Deletes the alert and every watch of your watchlist filed under it, with their notification rules. A watch of the same property with no alert, or under another alert, is kept.
          */
         delete: operations["deleteAlert"];
         options?: never;
@@ -192,8 +212,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get aggregated listing warehouse analytics
-         * @description Query immutable market warehouse data with filters, grouping, time buckets, and aggregate metrics.
+         * Get aggregated listing analytics
+         * @description Query listing market data with filters, grouping, time buckets, and aggregate metrics.
          */
         get: operations["getListingAnalytics"];
         put?: never;
@@ -459,7 +479,7 @@ export interface paths {
         put?: never;
         /**
          * Resolve the address of a property
-         * @description Finds the exact postal address of a property from the data its listings carry: the energy certificate registry first, then the national address base around a precise location. Beta: the matching is being tuned and the confidence bands may move. A result is returned whatever the outcome; read the confidence before showing the address. EXACT and HIGH can be shown as the address, MEDIUM and LOW as a probable address, NONE means nothing was found. Covers properties located in France; other countries are refused.
+         * @description Finds the exact postal address of a property. Beta: the confidence bands may change. A result is returned whatever the outcome; read the confidence before showing the address. EXACT and HIGH can be shown as the address, MEDIUM and LOW as a probable address, NONE means nothing was found. Covers properties located in France; other countries are refused.
          */
         post: operations["resolvePropertyAddress"];
         delete?: never;
@@ -599,9 +619,101 @@ export interface paths {
         put?: never;
         /**
          * Search transactions
-         * @description Search closed real-estate transactions with optional filters (date, property type, price, location ids, and a GeoJSON polygon), cursor-paginated. Overlapping records from different sources are reconciled on the fly: a duplicate is suppressed and merged into the surviving row, which then carries a matched block. Filters are sent in the request body rather than the query string so a large geoshape polygon is not constrained by URL length.
+         * @description Search closed real-estate transactions with optional filters (date, property type, price, location ids, and a GeoJSON polygon), cursor-paginated. A transaction reported by more than one source is returned once, with a matched block. Filters are sent in the request body rather than the query string so a large geoshape polygon is not constrained by URL length.
          */
         post: operations["searchTransactions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List your watchlist
+         * @description Your watches, newest first. Each carries the watched property's id, not the property itself: read the properties through the property endpoints.
+         */
+        get: operations["listWatchlist"];
+        put?: never;
+        /**
+         * Watch a property
+         * @description Adds a property to your watchlist. Without notificationConfig the watch only keeps the property in your list and is free; with it, each notification costs a credit, as an alert's does. Nothing is sent about the property's past: notifications start from the property as it is now. An unknown property returns 404; one you already watch under the same alert, or under none, returns 409 with the id of that watch; NEW_MATCH at PROPERTY scope returns 422.
+         */
+        post: operations["createWatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a watch
+         * @description One watch of your watchlist. A deleted watch, or one merged into another, returns 404.
+         */
+        get: operations["getWatch"];
+        /**
+         * Update a watch
+         * @description Changes the alert a watch is filed under, its notification configuration, its destination or whether it is enabled. Only the fields present in the body change; the property never does. Moving a watch where you already watch the property merges it into the watch already there, which is returned: that watch keeps its notification rules and takes the moved watch's rules for the event types it has none for and its destination can deliver; one with no rules takes the rules, destination and enabled value of a moved watch that has rules. Otherwise the watch already there keeps its own destination and enabled value, and those sent with the move are not applied to it. The watch returned keeps the prices it measures changes from, unless it takes a rule at a level, property or listing, it had none at, which restarts them from the current prices; the moved watch's are discarded. It returns 409 when both watches have rules and differ in whether they are enabled or in their destination.
+         */
+        put: operations["updateWatch"];
+        post?: never;
+        /**
+         * Remove a watch
+         * @description Removes the property from your watchlist and stops its notifications.
+         */
+        delete: operations["deleteWatch"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist/{watchId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the events of a watch
+         * @description The events a watch of your watchlist was told, newest first: one per change of the watched property that one of its notification rules admitted.
+         */
+        get: operations["listWatchEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist/{watchId}/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an event of a watch
+         * @description One notification-producing event of a watch of your watchlist.
+         */
+        get: operations["getWatchEvent"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -817,12 +929,7 @@ export interface components {
              */
             postalCodes?: string[];
         };
-        /**
-         * @description Contours of an administrative division, split out of the division resource (#44): the raw boundary of a
-         *     large region dominated that payload (seconds, megabytes), while most callers only need the metadata.
-         *     The boundary served here is the simplified copy precomputed at import, read as GeoJSON from the database
-         *     so no boundary is ever hydrated into PHP geometry objects.
-         */
+        /** @description Boundary of an administrative division, as GeoJSON. */
         AdministrativeDivisionGeometry: {
             /**
              * @description GeoJSON (RFC 7946) Polygon or MultiPolygon of the administrative boundary.
@@ -1530,10 +1637,7 @@ export interface components {
                 };
             };
         };
-        /**
-         * @description How many new matches alert criteria would have sent over the last days, so a client can size an alert
-         *     before saving it. Computed on every call; writes nothing and is not billed.
-         */
+        /** @description Estimated number of notifications an alert with given criteria would send. */
         AlertForecast: {
             /**
              * @description Number of whole days the estimate is computed over.
@@ -1900,7 +2004,7 @@ export interface components {
              * @example search
              * @enum {string}
              */
-            routeType?: "search" | "analytics" | "admin" | "mcp" | "other";
+            routeType?: "search" | "analytics" | "mcp" | "other";
             /**
              * @description Number of API calls made to this route over the period.
              * @example 26310
@@ -2016,7 +2120,7 @@ export interface components {
              * @example search
              * @enum {string|null}
              */
-            routeType?: "search" | "analytics" | "admin" | "mcp" | "other" | null;
+            routeType?: "search" | "analytics" | "mcp" | "other" | null;
             /**
              * @description Channel the calls were issued through. Set when groupBy is channel.
              * @example DIRECT
@@ -2055,7 +2159,7 @@ export interface components {
         };
         AreaSection: {
             /**
-             * @description Headline surface for the property. Per-dimension value most listings report, surfaces within 2 % counting as one (recency tie-break, largest when no two listings agree): living, total, terrace, balcony, garden, basement, parking, land. displayed is the headline surface — indoor living, fallback to indoor total.
+             * @description Headline surface of the property: its living area, or its total indoor area when the living area is unknown.
              * @example 56
              * @example 56
              */
@@ -2078,13 +2182,13 @@ export interface components {
         };
         BodySection: {
             /**
-             * @description Canonical listing title. Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash.
+             * @description Title of the property.
              * @example Beautiful flat in Paris
              * @example Beautiful flat in Paris
              */
             title?: string | null;
             /**
-             * @description Canonical listing description. Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash.
+             * @description Description of the property.
              * @example Renovated flat on a quiet street, close to transit and shops.
              * @example Renovated flat on a quiet street, close to transit and shops.
              */
@@ -2112,7 +2216,7 @@ export interface components {
              */
             renovationYear?: number | null;
             /**
-             * @description Building construction type (Haussmannian, modern, …). Most-frequent + recency tie-break.
+             * @description Building construction type (Haussmannian, modern, …).
              * @example HAUSSMANNIAN
              * @example HAUSSMANNIAN
              * @enum {string|null}
@@ -2211,7 +2315,7 @@ export interface components {
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
-            /** @description Per-category breakdown deduplicated across listings. */
+            /** @description Per-category breakdown deduplicated across the listings the price is taken from. */
             details?: components["schemas"]["Pricing.ChargeDetail"][];
         };
         Condominium: {
@@ -2235,7 +2339,7 @@ export interface components {
              * @enum {string|null}
              */
             frequency?: "WEEKLY" | "MONTHLY" | "YEARLY" | null;
-            /** @description Per-category breakdown deduplicated across listings. */
+            /** @description Per-category breakdown deduplicated across the listings the price is taken from. */
             breakdown?: components["schemas"]["CondominiumFee"][];
         };
         CondominiumFee: {
@@ -2743,6 +2847,98 @@ export interface components {
                 propertyId: string | null;
             };
         };
+        /** @description A problem report sent to the Stream Estate team. */
+        Feedback: {
+            /**
+             * @description Feedback identifier.
+             * @example 0193b8c2-7e4a-7c3a-9f1d-2b6e5a4c8d10
+             * @example 0193b8c2-7e4a-7c3a-9f1d-2b6e5a4c8d10
+             */
+            id?: string;
+            /**
+             * Format: date-time
+             * @description When the feedback was recorded.
+             * @example 2026-11-19T10:30:00+00:00
+             * @example 2026-11-19T10:30:00+00:00
+             */
+            createdAt?: string | null;
+        };
+        /** @description A problem report sent to the Stream Estate team. */
+        "Feedback.FeedbackInput": {
+            /**
+             * @description What happened, and what was expected instead.
+             * @default
+             * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+             * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+             */
+            message: string;
+            /**
+             * @description What the feedback is about, such as the name of the tool or the page concerned.
+             * @example create_alert
+             * @example create_alert
+             */
+            subject?: string | null;
+            /**
+             * @description A change the sender suggests, if any.
+             * @example List the allowed delivery channels in the error message.
+             * @example List the allowed delivery channels in the error message.
+             */
+            proposedFix?: string | null;
+        };
+        "Feedback.FeedbackInput.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id?: string;
+            /**
+             * @example Feedback.Feedback
+             * @example Feedback.Feedback
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * @description What happened, and what was expected instead.
+                 * @default
+                 * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+                 * @example create_alert refused an email destination: "email delivery isn't enabled on your account". Expected the alert to be created.
+                 */
+                message: string;
+                /**
+                 * @description What the feedback is about, such as the name of the tool or the page concerned.
+                 * @example create_alert
+                 * @example create_alert
+                 */
+                subject?: string | null;
+                /**
+                 * @description A change the sender suggests, if any.
+                 * @example List the allowed delivery channels in the error message.
+                 * @example List the allowed delivery channels in the error message.
+                 */
+                proposedFix?: string | null;
+            };
+        };
+        "Feedback.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example Feedback
+             * @example Feedback
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: date-time
+                 * @description When the feedback was recorded.
+                 * @example 2026-11-19T10:30:00+00:00
+                 * @example 2026-11-19T10:30:00+00:00
+                 */
+                createdAt?: string | null;
+            };
+        };
         GeoJsonGeometry: {
             /**
              * @description GeoJSON geometry type, spelled exactly as in RFC 7946 and case-sensitive: Point, Polygon or MultiPolygon.
@@ -3109,26 +3305,26 @@ export interface components {
              */
             lastSeenAt?: string | null;
             /**
-             * @description Variant title, present only when it diverges from property.body.title (different normalized hash).
+             * @description Title of this listing, present only when it differs from property.body.title.
              * @example Bright 3-room apartment with balcony
              * @example Bright 3-room apartment with balcony
              */
             title?: string | null;
             /**
-             * @description Variant description, present only when it diverges from property.body.description (different normalized hash).
+             * @description Description of this listing, present only when it differs from property.body.description.
              * @example Renovated flat on a quiet street, close to transit and shops.
              * @example Renovated flat on a quiet street, close to transit and shops.
              */
             description?: string | null;
             /**
-             * @description Crawl creation date (ISO 8601).
+             * @description Date the listing was first recorded by Stream Estate (ISO 8601).
              * @default
              * @example 2026-04-15T09:05:00+00:00
              * @example 2026-04-15T09:05:00+00:00
              */
             createdAt: string;
             /**
-             * @description Crawl last-update date (ISO 8601).
+             * @description Date the listing was last updated by Stream Estate (ISO 8601).
              * @default
              * @example 2026-05-12T08:30:00+00:00
              * @example 2026-05-12T08:30:00+00:00
@@ -3339,7 +3535,7 @@ export interface components {
             /** @description Source-side marketing signals (favorite count, urgent/boosted/highlighted flags). */
             marketing?: components["schemas"]["ListingMarketing"] | null;
         };
-        /** @description API Platform resource for location autocomplete. */
+        /** @description Location suggestions for a search query: administrative divisions such as municipalities, departments or regions. */
         "LocationAutocomplete.LocationSuggestion": {
             /**
              * @description Human-readable display name.
@@ -3460,6 +3656,21 @@ export interface components {
             neighborhood?: components["schemas"]["AdministrativeDivisionReference"] | null;
             /** @description Sub-neighborhood-level division (e.g. IRIS in France) when known. */
             subNeighborhood?: components["schemas"]["AdministrativeDivisionReference"] | null;
+        };
+        NotificationDestination: {
+            /**
+             * Format: iri-reference
+             * @description Existing event destination to link. Provide only one destination input.
+             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
+             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
+             */
+            eventDestination?: string | null;
+            /**
+             * @description Webhook URL; creates or reuses a webhook destination. Provide only one destination input.
+             * @example https://your-server.com/webhooks/alerts
+             * @example https://your-server.com/webhooks/alerts
+             */
+            webhookUrl?: string | null;
         };
         OutdoorArea: {
             /**
@@ -3628,13 +3839,13 @@ export interface components {
         };
         PricingSection: {
             /**
-             * @description Canonical displayed price. Headline price (most frequent, recency tie-break) plus full sale/rental fee breakdowns. Each fee is the one most listings report (recency tie-break); breakdown arrays deduplicated by (type, amount).
+             * @description Displayed price of the property, taken from its listings still online, or from the ones online last when none is, leaving out those whose price looks incoherent with the local market unless all do.
              * @example 400000
              * @example 400000
              */
             displayed?: number | null;
             /**
-             * @description Majority currency across listings.
+             * @description Majority currency across the listings the price is taken from.
              * @example EUR
              * @example EUR
              * @enum {string|null}
@@ -3645,10 +3856,7 @@ export interface components {
             /** @description Full rental-side pricing tree (only emitted when transaction.type is RENT). */
             rental?: components["schemas"]["Pricing.RentalPricing"] | null;
         };
-        /**
-         * @description Beta. Resolves the exact postal address of a property from what its listings carry, through an
-         *     ordered chain of sources per country. France only for now.
-         */
+        /** @description Exact postal address of a property, with a confidence level. */
         PropertyAddressResolution: {
             /**
              * @description How sure the resolution is. EXACT: the certificate reference was found in the registry. HIGH: a certificate matches the characteristics and a coincidence is unlikely. MEDIUM and LOW: a probable address. NONE: no address; address and method are null.
@@ -3963,7 +4171,7 @@ export interface components {
              * @example 019dedb1-fdf4-714c-8392-5b9cfd63cde3
              */
             id: string;
-            /** @description Aggregated canonical view of the property (carries the property timestamps). */
+            /** @description Aggregated canonical view of the property (carries the property timestamps). Each characteristic comes from the listings still online that state it, or from the ones online last when none does; the location comes from the most precise listing, the energy diagnostic from the most complete listing that agrees with it, and the law of a legal area that names none from a listing stating the same surface. */
             property?: components["schemas"]["PropertySection"];
             /** @description Deduplicated publishers across all listings of the property. */
             publishers?: components["schemas"]["PublisherSection"][];
@@ -3982,14 +4190,14 @@ export interface components {
         };
         PropertySection: {
             /**
-             * @description Crawl creation date (ISO 8601).
+             * @description Date the property was first recorded by Stream Estate (ISO 8601).
              * @default
              * @example 2025-01-15T10:30:00+00:00
              * @example 2025-01-15T10:30:00+00:00
              */
             createdAt: string;
             /**
-             * @description Crawl last-update date (ISO 8601).
+             * @description Date the property was last updated by Stream Estate (ISO 8601).
              * @default
              * @example 2025-06-15T12:00:00+00:00
              * @example 2025-06-15T12:00:00+00:00
@@ -4003,36 +4211,36 @@ export interface components {
              */
             expired: boolean;
             /**
-             * @description Property type. Most frequent property type across listings; ties resolved by the most recently created listing.
+             * @description Property type.
              * @example FLAT
              * @example FLAT
              * @enum {string|null}
              */
             propertyType?: "FLAT" | "HOUSE" | "BUILDING" | "PARKING" | "OFFICE" | "LAND" | "SHOP" | "COMMERCIAL_PREMISES" | null;
             /**
-             * @description Construction status of the property. Most frequent construction status across listings; ties resolved by the most recently created listing.
+             * @description Construction status of the property.
              * @example OLD
              * @example OLD
              * @enum {string|null}
              */
             constructionStatus?: "OLD" | "NEW" | "UNDER_CONSTRUCTION" | null;
-            /** @description Transaction summary (type, status, mandate, saleType, availableAt). Bundles transaction type (most frequent), status (strongest by precedence), saleType (most-frequent + recency) and availableAt (most recent). */
+            /** @description Transaction summary (type, status, mandate, saleType, availableAt). */
             transaction?: components["schemas"]["TransactionSection"] | null;
-            /** @description Aggregated area breakdown — headline displayed surface plus indoor / outdoor / annexes / land sub-sections. Per-dimension value most listings report, surfaces within 2 % counting as one (recency tie-break, largest when no two listings agree): living, total, terrace, balcony, garden, basement, parking, land. displayed is the headline surface — indoor living, fallback to indoor total. */
+            /** @description Area breakdown: headline displayed surface plus indoor, outdoor, annexes and land sub-sections. */
             area?: components["schemas"]["AreaSection"] | null;
-            /** @description Unit-level facets (counters, floor flags, condition, orientation, feature booleans, parking). Counters take the value most listings report (recency tie-break, max when no two listings agree), logical OR for booleans, union for orientation, most-frequent + recency tie-break for condition. */
+            /** @description Unit-level facets (counters, floor flags, condition, orientation, feature booleans, parking). */
             unit?: components["schemas"]["UnitSection"] | null;
-            /** @description Building-level facets (construction year, condition, floors, legal status). Value most listings report for constructionYear / renovationYear / floors / numberOfLots (recency tie-break; min for constructionYear and max for the others when no two listings agree), most-frequent + recency for constructionType / condition / energy, logical OR for legalStatus.underLegalProceedings. */
+            /** @description Building-level facets (construction year, condition, floors, legal status). */
             building?: components["schemas"]["BuildingSection"] | null;
-            /** @description Residence-level amenities (elevator, pool, caretaker, parking facility, connectivity). Logical OR for boolean amenities, most-frequent + recency for parking.type, value most listings report for parking.spaces (recency tie-break, max when no two listings agree), deduplicated union for connectivity. */
+            /** @description Residence-level amenities (elevator, pool, caretaker, parking facility, connectivity). */
             amenities?: components["schemas"]["AmenitiesSection"] | null;
-            /** @description Canonical body (title + description). Canonical title/description: longest text in the largest hash-cluster of normalized texts across listings; recency tie-break. Sparse per-listing variants only when a listing's text doesn't match the canonical hash. */
+            /** @description Title and description of the property. */
             body?: components["schemas"]["BodySection"] | null;
-            /** @description Pricing summary. Headline price (most frequent, recency tie-break) plus full sale/rental fee breakdowns. Each fee is the one most listings report (recency tie-break); breakdown arrays deduplicated by (type, amount). */
+            /** @description Pricing summary: headline price plus sale and rental fee breakdowns. */
             pricing?: components["schemas"]["PricingSection"] | null;
-            /** @description Location summary (geometry + administrative slots). Location built from the most precisely localized listing. Coordinates are the listing geo-point when accuracy is PRECISE or STREET, otherwise the centroid of the deepest qualified administrative division. The administrativeDivisions list reflects that division's root→leaf hierarchy. */
+            /** @description Location summary (geometry and administrative divisions). Coordinates are the property's own point when accuracy is PRECISE or STREET, otherwise the centre of the smallest known administrative division. */
             location?: components["schemas"]["LocationSection"] | null;
-            /** @description Deduplicated pictures across all listings of the property. Union of all listings' pictures, collapsed via perceptual-hash Hamming distance (≤ 10 bits). Canonical per cluster: lowest position, then earliest createdAt. */
+            /** @description Pictures of the property, gathered from all its listings, each picture once. */
             pictures?: components["schemas"]["Listing.Picture"][];
             /** @description Recent attribute changes across the property listings (price drops, area changes, update markers), newest first. */
             changes?: components["schemas"]["ChangeSection"][];
@@ -4066,10 +4274,7 @@ export interface components {
              */
             paidBy?: "BUYER" | "SELLER" | "OWNER" | "TENANT" | null;
         };
-        /**
-         * @description Points at the property a listing URL belongs to, without its data: reading the property is a second,
-         *     separately priced call. A match costs one result; a URL we do not know answers 404 and costs nothing.
-         */
+        /** @description The property a listing URL belongs to. */
         PropertyUrlLookup: {
             /**
              * @description Id of the property published at the URL.
@@ -4085,10 +4290,7 @@ export interface components {
              */
             property?: string;
         };
-        /**
-         * @description Points at the property a listing URL belongs to, without its data: reading the property is a second,
-         *     separately priced call. A match costs one result; a URL we do not know answers 404 and costs nothing.
-         */
+        /** @description The property a listing URL belongs to. */
         "PropertyUrlLookup.PropertyUrlLookupInput": {
             /**
              * Format: uri
@@ -4272,7 +4474,7 @@ export interface components {
              */
             website?: string | null;
             /**
-             * @description Canonical mandate the publisher uses on this property. Publishers grouped by id; mandate and publishing reference are single canonical values (most frequent + tie-break by most recent listing); contact is the most recently verified one.
+             * @description Mandate the publisher holds on this property.
              * @example EXCLUSIVE
              * @example EXCLUSIVE
              * @enum {string|null}
@@ -4346,7 +4548,7 @@ export interface components {
         };
         Source: {
             /**
-             * @description Display name of the source the listing was crawled from.
+             * @description Display name of the source publishing the listing.
              * @example Realty Portal
              * @example Realty Portal
              */
@@ -4378,7 +4580,7 @@ export interface components {
             type: string;
             attributes?: {
                 /**
-                 * @description Display name of the source the listing was crawled from.
+                 * @description Display name of the source publishing the listing.
                  * @example Realty Portal
                  * @example Realty Portal
                  */
@@ -4585,23 +4787,9 @@ export interface components {
                 updatedAt?: string | null;
                 /** @description Present when a duplicate from another source was reconciled into this row. */
                 matched?: components["schemas"]["TransactionMatch"] | null;
-                /**
-                 * @description Raw source payload. Returned on the item endpoint only, and only to authorized service accounts.
-                 * @example {
-                 *       "id_mutation": "2024-123456",
-                 *       "type_local": "Appartement"
-                 *     }
-                 * @example {
-                 *       "id_mutation": "2024-123456",
-                 *       "type_local": "Appartement"
-                 *     }
-                 */
-                sourcePayload?: {
-                    [key: string]: unknown;
-                };
             };
         };
-        /** @description Public API for closed real-estate transactions. */
+        /** @description Closed real-estate transactions. */
         "Transaction.TransactionSearchRequestInput": {
             /** @description Filter by mutation date range (inclusive). */
             dateMutation?: components["schemas"]["DateMutationRange"] | null;
@@ -4710,8 +4898,8 @@ export interface components {
              */
             id?: string;
             /**
-             * @example Transaction.TransactionSearchRequestInput
-             * @example Transaction.TransactionSearchRequestInput
+             * @example Transaction.TransactionSearchRequest
+             * @example Transaction.TransactionSearchRequest
              */
             type: string;
             attributes?: {
@@ -4816,7 +5004,7 @@ export interface components {
                 page?: components["schemas"]["TransactionPage"] | null;
             };
         };
-        /** @description Public API for closed real-estate transactions. */
+        /** @description Closed real-estate transactions. */
         "Transaction.TransactionSearchResponse": {
             /** @description Transactions matching the search on this page. */
             data?: components["schemas"]["TransactionResult"][];
@@ -5096,20 +5284,6 @@ export interface components {
             updatedAt?: string | null;
             /** @description Present when a duplicate from another source was reconciled into this row. */
             matched?: components["schemas"]["TransactionMatch"] | null;
-            /**
-             * @description Raw source payload. Returned on the item endpoint only, and only to authorized service accounts.
-             * @example {
-             *       "id_mutation": "2024-123456",
-             *       "type_local": "Appartement"
-             *     }
-             * @example {
-             *       "id_mutation": "2024-123456",
-             *       "type_local": "Appartement"
-             *     }
-             */
-            sourcePayload?: {
-                [key: string]: unknown;
-            };
         };
         TransactionSearchMeta: {
             /**
@@ -5142,7 +5316,7 @@ export interface components {
              */
             status?: "AVAILABLE" | "UNDER_OFFER" | "SOLD" | "RENTED" | "WITHDRAWN" | null;
             /**
-             * @description Canonical sale type (standard, life annuity, …). Most-frequent + recency tie-break.
+             * @description Sale type (standard, life annuity, …).
              * @example STANDARD
              * @example STANDARD
              * @enum {string|null}
@@ -5371,7 +5545,7 @@ export interface components {
              */
             orientation?: ("NORTH" | "NORTH_EAST" | "EAST" | "SOUTH_EAST" | "SOUTH" | "SOUTH_WEST" | "WEST" | "NORTH_WEST")[];
             /**
-             * @description Canonical condition (most frequent across listings, recency tie-break).
+             * @description Condition of the unit.
              * @example GOOD
              * @example GOOD
              * @enum {string|null}
@@ -5475,10 +5649,439 @@ export interface components {
             storage?: boolean | null;
             /** @description Parking facet — total count and individual spots with type / box flag. */
             parking?: components["schemas"]["Unit.Parking"] | null;
-            /** @description Canonical regulatory diagnostic (DPE / audit) — most-filled across listings, recency tie-break. */
+            /** @description Regulatory diagnostic of the unit (DPE, energy audit). */
             diagnostic?: components["schemas"]["UnitDiagnostic"] | null;
             /** @description Energy equipment (heating systems / carriers) attached to the canonical diagnostic's source listing. */
             energy?: components["schemas"]["UnitEnergy"] | null;
+        };
+        /** @description A property of your watchlist, with the notifications you chose for it. */
+        Watch: {
+            /**
+             * @description Id of the watched property. After a merge, the id of the property it was merged into.
+             * @default
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             */
+            readonly propertyId: string;
+            /**
+             * @description Id of the alert this watch is filed under; absent when it is filed under none.
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             */
+            readonly alertId?: string | null;
+            /**
+             * @description Whether the watched property has left the market. The watch stays, and tells you of its return if you asked to be.
+             * @default false
+             * @example false
+             * @example false
+             */
+            readonly expired: boolean;
+            /**
+             * @description Whether the watch notifies. When a property you also watch is merged into this watch's property, a disabled watch with notification rules stays disabled and silent, including the rules it takes, until you enable it.
+             * @default true
+             * @example true
+             * @example true
+             */
+            readonly enabled: boolean;
+            /** @description Notification configuration; absent for a watch that only keeps the property in your list. */
+            readonly notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+            /**
+             * Format: iri-reference
+             * @description Event destination notifications are delivered to. Set it on create or update through notificationDestination.
+             * @example https://example.com/
+             * @example https://example.com/
+             */
+            readonly eventDestination?: string | null;
+            /**
+             * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+             * @example whsec_abc123...
+             * @example whsec_abc123...
+             */
+            readonly signingKey?: string | null;
+            /**
+             * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+             * @example b75b1473
+             * @example b75b1473
+             */
+            readonly signingKeyHint?: string | null;
+            /**
+             * Format: uuid
+             * @description Public unique identifier (UUID).
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            readonly id?: string;
+            /**
+             * Format: date-time
+             * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
+             * @example 2026-01-15T10:30:00+00:00
+             */
+            readonly createdAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Last update date.
+             * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
+             */
+            readonly updatedAt?: string | null;
+        };
+        /** @description A property of your watchlist, with the notifications you chose for it. */
+        "Watch.WatchCreateInput": {
+            /**
+             * Format: uuid
+             * @description Id of the property to watch. An id that a merge retired is accepted and the watch is made on the property it was merged into.
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             */
+            propertyId: string;
+            /**
+             * Format: uuid
+             * @description Id of one of your alerts to file the watch under. Omit it to file the watch under no alert.
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             */
+            alertId?: string | null;
+            /**
+             * @description Whether the watch notifies. New watches are enabled.
+             * @example true
+             * @example true
+             */
+            enabled?: boolean;
+            /** @description Notification configuration, which selects the changes of this property you are notified of. Omit it to keep the property in your watchlist without notifications. NEW_MATCH is accepted only at LISTING scope, where it means a new listing publishes the property. */
+            notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+            /** @description Notification destination. Provide exactly one destination input. Omit it to use your default destination at delivery time; a watch with no notification configuration needs none. */
+            notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+        };
+        "Watch.WatchCreateInput.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id?: string;
+            /**
+             * @example Watch.WatchCreate
+             * @example Watch.WatchCreate
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: uuid
+                 * @description Id of the property to watch. An id that a merge retired is accepted and the watch is made on the property it was merged into.
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 */
+                propertyId: string;
+                /**
+                 * Format: uuid
+                 * @description Id of one of your alerts to file the watch under. Omit it to file the watch under no alert.
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 */
+                alertId?: string | null;
+                /**
+                 * @description Whether the watch notifies. New watches are enabled.
+                 * @example true
+                 * @example true
+                 */
+                enabled?: boolean;
+                /** @description Notification configuration, which selects the changes of this property you are notified of. Omit it to keep the property in your watchlist without notifications. NEW_MATCH is accepted only at LISTING scope, where it means a new listing publishes the property. */
+                notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                /** @description Notification destination. Provide exactly one destination input. Omit it to use your default destination at delivery time; a watch with no notification configuration needs none. */
+                notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+            };
+        };
+        "Watch.WatchUpdateInput.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example Watch.WatchUpdate
+             * @example Watch.WatchUpdate
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: uuid
+                 * @description Id of one of your alerts to file the watch under, or null to file it under none. Omit it to keep the current one. Moving a watch where you already watch this property merges the two into the one already there.
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 */
+                alertId?: string | null;
+                /**
+                 * @description Whether the watch notifies. Omit it to keep the current value. Enabling it again starts from the property as it is then, without telling what changed meanwhile.
+                 * @example true
+                 * @example true
+                 */
+                enabled?: boolean;
+                /** @description Notification configuration. Omit it to keep the current one, or send null to stop notifying and keep the property in your watchlist. Rules attached later start from the property as it is then. */
+                notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                /** @description Notification destination. Provide exactly one destination input. Omit it to keep the current destination, or send null to go back to your default. */
+                notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+            };
+        };
+        /** @description A property of your watchlist, with the notifications you chose for it. */
+        "Watch.WatchUpdateInput.partial": {
+            /**
+             * Format: uuid
+             * @description Id of one of your alerts to file the watch under, or null to file it under none. Omit it to keep the current one. Moving a watch where you already watch this property merges the two into the one already there.
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             */
+            alertId?: string | null;
+            /**
+             * @description Whether the watch notifies. Omit it to keep the current value. Enabling it again starts from the property as it is then, without telling what changed meanwhile.
+             * @example true
+             * @example true
+             */
+            enabled?: boolean;
+            /** @description Notification configuration. Omit it to keep the current one, or send null to stop notifying and keep the property in your watchlist. Rules attached later start from the property as it is then. */
+            notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+            /** @description Notification destination. Provide exactly one destination input. Omit it to keep the current destination, or send null to go back to your default. */
+            notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+        };
+        "Watch.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example Watch
+             * @example Watch
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * @description Id of the watched property. After a merge, the id of the property it was merged into.
+                 * @default
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 */
+                readonly propertyId: string;
+                /**
+                 * @description Id of the alert this watch is filed under; absent when it is filed under none.
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 */
+                readonly alertId?: string | null;
+                /**
+                 * @description Whether the watched property has left the market. The watch stays, and tells you of its return if you asked to be.
+                 * @default false
+                 * @example false
+                 * @example false
+                 */
+                readonly expired: boolean;
+                /**
+                 * @description Whether the watch notifies. When a property you also watch is merged into this watch's property, a disabled watch with notification rules stays disabled and silent, including the rules it takes, until you enable it.
+                 * @default true
+                 * @example true
+                 * @example true
+                 */
+                readonly enabled: boolean;
+                /** @description Notification configuration; absent for a watch that only keeps the property in your list. */
+                readonly notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                /**
+                 * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+                 * @example whsec_abc123...
+                 * @example whsec_abc123...
+                 */
+                readonly signingKey?: string | null;
+                /**
+                 * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                 * @example b75b1473
+                 * @example b75b1473
+                 */
+                readonly signingKeyHint?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Creation date.
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                readonly createdAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
+                 * @example 2026-05-20T14:45:00+00:00
+                 */
+                readonly updatedAt?: string | null;
+            };
+            relationships?: {
+                eventDestination?: {
+                    /**
+                     * @example {
+                     *       "type": "EventDestination",
+                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     * @example {
+                     *       "type": "EventDestination",
+                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     */
+                    data?: null | {
+                        /**
+                         * @example EventDestination
+                         * @example EventDestination
+                         */
+                        type: string;
+                        /**
+                         * Format: iri-reference
+                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    };
+                };
+            };
+        };
+        /** @description An event of a watch of your watchlist: one change of the watched property that one of its notification rules admitted. Data is retained for 12 months, after which it is permanently deleted. */
+        WatchEvent: {
+            /**
+             * Format: iri-reference
+             * @description The watch this event was told to.
+             * @example https://example.com/
+             * @example https://example.com/
+             */
+            watch?: string;
+            /**
+             * Format: iri-reference
+             * @description The watched property.
+             * @example https://example.com/
+             * @example https://example.com/
+             */
+            property?: string;
+            /**
+             * @description What happened to the property.
+             * @example PRICE_CHANGE
+             * @example PRICE_CHANGE
+             * @enum {string}
+             */
+            eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+            /**
+             * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did.
+             * @default PROPERTY
+             * @example PROPERTY
+             * @example PROPERTY
+             * @enum {string}
+             */
+            scope: "PROPERTY" | "LISTING";
+            /**
+             * Format: date-time
+             * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the watch is no longer active, when no delivery destination could be resolved, or when the destination cannot carry the event type.
+             * @example 2026-07-28T09:15:00+00:00
+             * @example 2026-07-28T09:15:00+00:00
+             */
+            notifiedAt?: string | null;
+            /**
+             * Format: uuid
+             * @description Public unique identifier (UUID).
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            readonly id?: string;
+            /**
+             * Format: date-time
+             * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
+             * @example 2026-01-15T10:30:00+00:00
+             */
+            readonly createdAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Last update date.
+             * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
+             */
+            readonly updatedAt?: string | null;
+        };
+        /** @description Data is retained for 12 months, after which it is permanently deleted. */
+        "WatchEvent.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example WatchEvent
+             * @example WatchEvent
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: iri-reference
+                 * @description The watch this event was told to.
+                 * @example https://example.com/
+                 * @example https://example.com/
+                 */
+                watch?: string;
+                /**
+                 * @description What happened to the property.
+                 * @example PRICE_CHANGE
+                 * @example PRICE_CHANGE
+                 * @enum {string}
+                 */
+                eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+                /**
+                 * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did.
+                 * @default PROPERTY
+                 * @example PROPERTY
+                 * @example PROPERTY
+                 * @enum {string}
+                 */
+                scope: "PROPERTY" | "LISTING";
+                /**
+                 * Format: date-time
+                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the watch is no longer active, when no delivery destination could be resolved, or when the destination cannot carry the event type.
+                 * @example 2026-07-28T09:15:00+00:00
+                 * @example 2026-07-28T09:15:00+00:00
+                 */
+                notifiedAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Creation date.
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                readonly createdAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
+                 * @example 2026-05-20T14:45:00+00:00
+                 */
+                readonly updatedAt?: string | null;
+            };
+            relationships?: {
+                property?: {
+                    /**
+                     * @example {
+                     *       "type": "Property",
+                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     * @example {
+                     *       "type": "Property",
+                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     */
+                    data?: null | {
+                        /**
+                         * @example Property
+                         * @example Property
+                         */
+                        type: string;
+                        /**
+                         * Format: iri-reference
+                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    };
+                };
+            };
         };
         AndNode: {
             /** @description Child nodes — all must match. */
@@ -5495,7 +6098,7 @@ export interface components {
             property?: components["schemas"]["PropertyFacetFilters"] | null;
             /** @description Publisher filters (type, mandate, references, contact-presence) — all clauses apply to the SAME publisher (intra-publisher semantic). For cross-publisher independent matching, combine multiple publisher blocks via and: at the criteria tree level. */
             publisher?: components["schemas"]["PublisherFilters"] | null;
-            /** @description Listing-level filters targeting the nested listings.* (url, sources, marketing flags) — all clauses apply to the SAME listing. */
+            /** @description Listing-level filters (sources, marketing flags, expiry, price coherence). Sources, marketing flags and expiry apply to the SAME listing; price coherence applies to the property. */
             listings?: components["schemas"]["ListingsFilters"] | null;
             /** @description Date-range filters on createdAt and updatedAt. */
             dates?: components["schemas"]["DatesFilters"] | null;
@@ -5669,7 +6272,7 @@ export interface components {
         };
         NullableFloatRange: {
             /**
-             * @description When true, also match properties whose indexed field is missing. Default false (strict).
+             * @description When true, also match properties for which this value is unknown. Default false (strict).
              * @default false
              * @example false
              * @example false
@@ -5816,7 +6419,7 @@ export interface components {
         };
         LocationsSet: {
             /**
-             * @description Administrative division ids; matches the materialized path so descendants are included automatically.
+             * @description Administrative division ids; the divisions they contain are included automatically.
              * @example [
              *       "019dedb1-fdf4-714c-8392-5b9cfd63cde3"
              *     ]
@@ -5879,7 +6482,7 @@ export interface components {
             /** @description Unit-interior feature filters (in / nin / inOrMissing). */
             features?: components["schemas"]["UnitFeatureFilters"] | null;
             /**
-             * @description Number of rooms range. Opt-in orMissing to keep properties without an indexed room count.
+             * @description Number of rooms range. Opt-in orMissing to keep properties whose room count is unknown.
              * @example {
              *       "gte": 2,
              *       "lte": 5
@@ -5891,7 +6494,7 @@ export interface components {
              */
             rooms?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Number of bedrooms range. Opt-in orMissing to keep properties without an indexed bedroom count.
+             * @description Number of bedrooms range. Opt-in orMissing to keep properties whose bedroom count is unknown.
              * @example {
              *       "gte": 1,
              *       "lte": 3
@@ -5903,7 +6506,7 @@ export interface components {
              */
             bedrooms?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Floor number range. Opt-in orMissing to keep properties without an indexed floor (e.g. houses).
+             * @description Floor number range. Opt-in orMissing to keep properties whose floor is unknown (e.g. houses).
              * @example {
              *       "gte": 1,
              *       "lte": 5
@@ -5925,7 +6528,7 @@ export interface components {
         };
         UnitFeatureFilters: {
             /**
-             * @description Features the property must have (strict — feature must be indexed as true).
+             * @description Features the property must have (strict: a property that does not report the feature is excluded).
              * @example [
              *       "BALCONY",
              *       "TERRACE"
@@ -5959,7 +6562,7 @@ export interface components {
         };
         NullableIntRange: {
             /**
-             * @description When true, also match properties whose indexed field is missing. Default false (strict).
+             * @description When true, also match properties for which this value is unknown. Default false (strict).
              * @default false
              * @example false
              * @example false
@@ -6243,7 +6846,7 @@ export interface components {
         };
         BuildingFilters: {
             /**
-             * @description Construction year range. Opt-in orMissing to keep properties without an indexed construction year.
+             * @description Construction year range. Opt-in orMissing to keep properties whose construction year is unknown.
              * @example {
              *       "gte": 1900,
              *       "lte": 2024
@@ -6255,7 +6858,7 @@ export interface components {
              */
             constructionYear?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Renovation year range. Opt-in orMissing to keep properties without an indexed renovation year.
+             * @description Renovation year range. Opt-in orMissing to keep properties whose renovation year is unknown.
              * @example {
              *       "gte": 2010
              *     }
@@ -6265,7 +6868,7 @@ export interface components {
              */
             renovationYear?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Number of lots range (condominium size). Opt-in orMissing to keep properties without an indexed lot count.
+             * @description Number of lots range (condominium size). Opt-in orMissing to keep properties whose lot count is unknown.
              * @example {
              *       "gte": 10,
              *       "lte": 100
@@ -6277,7 +6880,7 @@ export interface components {
              */
             numberOfLots?: components["schemas"]["NullableIntRange"] | null;
             /**
-             * @description Total number of floors in the building (distinct from unit.floor which is the dwelling's floor). Opt-in orMissing to keep properties without an indexed floor count.
+             * @description Total number of floors in the building (distinct from unit.floor which is the dwelling's floor). Opt-in orMissing to keep properties whose floor count is unknown.
              * @example {
              *       "gte": 3,
              *       "lte": 8
@@ -6335,7 +6938,7 @@ export interface components {
         };
         AmenityFeatureFilters: {
             /**
-             * @description Amenities the property must have (strict — amenity must be indexed as true).
+             * @description Amenities the property must have (strict: a property that does not report the amenity is excluded).
              * @example [
              *       "ELEVATOR",
              *       "PARKING"
@@ -6504,13 +7107,6 @@ export interface components {
             nin?: ("NON_EXCLUSIVE" | "EXCLUSIVE" | "SEMI_EXCLUSIVE")[];
         };
         ListingsFilters: {
-            /**
-             * Format: uri
-             * @description Listing URL, with or without a trailing slash. An exact match is not required: when the search matches nothing, the URL is resolved from the information it carries. Alerts match the exact URL only. Targets listings.url.
-             * @example https://www.real-estate.io/ventes_immobilieres/123456789.html
-             * @example https://www.real-estate.io/ventes_immobilieres/123456789.html
-             */
-            url?: string | null;
             /** @description Source filter (in / nin by source id). Targets listings.source.id. */
             sources?: components["schemas"]["SourceFilters"] | null;
             /** @description Marketing filters on the listing (favorites count, urgent / boosted / highlighted flags). */
@@ -6518,7 +7114,7 @@ export interface components {
             /** @description Restrict to expired listings, optionally within an expiry date range (from / to). Setting this filter includes expired listings, which search hides by default. Targets listings.expiredAt. */
             expiredAt?: components["schemas"]["DateRange"] | null;
             /**
-             * @description Whether listing prices look coherent with the local market. Defaults to true: properties whose listings are all price-incoherent are hidden from results. Set false to return only those properties. Judged across the whole property rather than per listing.
+             * @description Whether listing prices look coherent with the local market. Defaults to true: properties whose price comes only from price-incoherent listings are hidden from results. Set false to return only those properties. Judged across the whole property rather than per listing.
              * @default true
              * @example false
              * @example false
@@ -6676,7 +7272,7 @@ export interface components {
              * @example eyJzb3J0IjpbMTc3ODg0NDY0MzAwMCwiMDE5Z
              */
             cursor?: string | null;
-            /** @description Sort directive (field + direction). Defaults to updatedAt DESC when omitted. A tiebreaker is appended for stable pagination. */
+            /** @description Sort directive (field + direction). Defaults to updatedAt DESC when omitted. Results keep a stable order from one page to the next. */
             sort?: components["schemas"]["Sort"] | null;
         };
         Sort: {
@@ -6715,21 +7311,6 @@ export interface components {
             /** @description Notification configuration, which selects the event types you receive. On create, omit it and the alert never notifies; on update, omit it to keep the current configuration, or send null to stop notifying. */
             notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
         };
-        NotificationDestination: {
-            /**
-             * Format: iri-reference
-             * @description Existing event destination to link. Provide only one destination input.
-             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
-             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
-             */
-            eventDestination?: string | null;
-            /**
-             * @description Webhook URL; creates or reuses a webhook destination. Provide only one destination input.
-             * @example https://your-server.com/webhooks/alerts
-             * @example https://your-server.com/webhooks/alerts
-             */
-            webhookUrl?: string | null;
-        };
         "AlertForecast.AlertForecastInput": {
             criteria?: components["schemas"]["Alert.CriteriaNode"] | null;
         };
@@ -6759,7 +7340,7 @@ export interface components {
             property?: components["schemas"]["Alert.PropertyFacetFilters"] | null;
             /** @description Publisher filters (type, mandate, references, contact-presence) — all clauses apply to the SAME publisher (intra-publisher semantic). For cross-publisher independent matching, combine multiple publisher blocks via and: at the criteria tree level. */
             publisher?: components["schemas"]["PublisherFilters"] | null;
-            /** @description Listing-level filters targeting the nested listings.* (url, sources, marketing flags) — all clauses apply to the SAME listing. */
+            /** @description Listing-level filters (sources, marketing flags, expiry, price coherence). Sources, marketing flags and expiry apply to the SAME listing; price coherence applies to the property. */
             listings?: components["schemas"]["ListingsFilters"] | null;
         };
         "Alert.AndNode": {
@@ -6784,7 +7365,7 @@ export interface components {
              * @enum {string}
              */
             type: "Property";
-            /** @description Aggregated canonical view of the property (carries the property timestamps). */
+            /** @description Aggregated canonical view of the property (carries the property timestamps). Each characteristic comes from the listings still online that state it, or from the ones online last when none does; the location comes from the most precise listing, the energy diagnostic from the most complete listing that agrees with it, and the law of a legal area that names none from a listing stating the same surface. */
             attributes?: components["schemas"]["PropertySection"];
             relationships?: {
                 listings: {
@@ -6891,26 +7472,26 @@ export interface components {
                  */
                 lastSeenAt?: string | null;
                 /**
-                 * @description Variant title, present only when it diverges from property.body.title (different normalized hash).
+                 * @description Title of this listing, present only when it differs from property.body.title.
                  * @example Bright 3-room apartment with balcony
                  * @example Bright 3-room apartment with balcony
                  */
                 title?: string | null;
                 /**
-                 * @description Variant description, present only when it diverges from property.body.description (different normalized hash).
+                 * @description Description of this listing, present only when it differs from property.body.description.
                  * @example Renovated flat on a quiet street, close to transit and shops.
                  * @example Renovated flat on a quiet street, close to transit and shops.
                  */
                 description?: string | null;
                 /**
-                 * @description Crawl creation date (ISO 8601).
+                 * @description Date the listing was first recorded by Stream Estate (ISO 8601).
                  * @default
                  * @example 2026-04-15T09:05:00+00:00
                  * @example 2026-04-15T09:05:00+00:00
                  */
                 createdAt: string;
                 /**
-                 * @description Crawl last-update date (ISO 8601).
+                 * @description Date the listing was last updated by Stream Estate (ISO 8601).
                  * @default
                  * @example 2026-05-12T08:30:00+00:00
                  * @example 2026-05-12T08:30:00+00:00
@@ -7201,7 +7782,7 @@ export interface components {
                 self?: string | null;
             };
         };
-        /** @description Source the listing was crawled from, as a JSON:API included resource. */
+        /** @description Source publishing the listing, as a JSON:API included resource. */
         "SourceSection.jsonapi": {
             /**
              * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -7245,7 +7826,7 @@ export interface components {
             type: "PropertyPublisher";
             attributes: {
                 /**
-                 * @description Canonical mandate the publisher uses on this property. Publishers grouped by id; mandate and publishing reference are single canonical values (most frequent + tie-break by most recent listing); contact is the most recently verified one.
+                 * @description Mandate the publisher holds on this property.
                  * @example EXCLUSIVE
                  * @example EXCLUSIVE
                  * @enum {string|null}
@@ -7882,6 +8463,73 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Error"];
                     "application/json": components["schemas"]["Error"];
                 };
+            };
+        };
+    };
+    reportFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Feedback resource */
+        requestBody: {
+            content: {
+                "application/vnd.api+json": components["schemas"]["Feedback.FeedbackInput.jsonapi"];
+                "application/json": components["schemas"]["Feedback.FeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description The feedback is recorded for the team. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Feedback.jsonapi"];
+                    "application/json": components["schemas"]["Feedback"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The message is empty, or a field is too long. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+            /** @description This account sent too much feedback. The error detail says how many seconds to wait. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -8610,7 +9258,7 @@ export interface operations {
                     "application/json": components["schemas"]["AlertForecast"];
                 };
             };
-            /** @description Invalid input */
+            /** @description The body carries a field the estimate does not accept */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -8665,7 +9313,7 @@ export interface operations {
                 district_id?: number[];
                 /** @description Neighborhood IDs filter (multi-value). */
                 neighborhood_id?: number[];
-                /** @description Warehouse event type filter (multi-value). */
+                /** @description Event type filter (multi-value). */
                 event_type?: ("CREATED" | "UPDATED" | "EXPIRED" | "REACTIVATED")[];
                 /** @description Inclusive start date for event_at. */
                 event_at_from?: string;
@@ -10291,6 +10939,631 @@ export interface operations {
             };
         };
     };
+    listWatchlist: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+                /** @description The number of items per page */
+                size?: number;
+                /** @description Only the watches filed under this alert. */
+                alertId?: string;
+                /** @description Only the watches of these properties, at most 100. */
+                "propertyId[]"?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Watch collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
+                        data?: {
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
+                            id: string;
+                            /**
+                             * @example Watch
+                             * @example Watch
+                             */
+                            type: string;
+                            attributes?: {
+                                /**
+                                 * @description Id of the watched property. After a merge, the id of the property it was merged into.
+                                 * @default
+                                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                                 */
+                                readonly propertyId: string;
+                                /**
+                                 * @description Id of the alert this watch is filed under; absent when it is filed under none.
+                                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                                 */
+                                readonly alertId?: string | null;
+                                /**
+                                 * @description Whether the watched property has left the market. The watch stays, and tells you of its return if you asked to be.
+                                 * @default false
+                                 * @example false
+                                 * @example false
+                                 */
+                                readonly expired: boolean;
+                                /**
+                                 * @description Whether the watch notifies. When a property you also watch is merged into this watch's property, a disabled watch with notification rules stays disabled and silent, including the rules it takes, until you enable it.
+                                 * @default true
+                                 * @example true
+                                 * @example true
+                                 */
+                                readonly enabled: boolean;
+                                /** @description Notification configuration; absent for a watch that only keeps the property in your list. */
+                                readonly notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                                /**
+                                 * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+                                 * @example whsec_abc123...
+                                 * @example whsec_abc123...
+                                 */
+                                readonly signingKey?: string | null;
+                                /**
+                                 * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                                 * @example b75b1473
+                                 * @example b75b1473
+                                 */
+                                readonly signingKeyHint?: string | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                                /**
+                                 * Format: date-time
+                                 * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 */
+                                readonly createdAt?: string | null;
+                                /**
+                                 * Format: date-time
+                                 * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 */
+                                readonly updatedAt?: string | null;
+                            };
+                            relationships?: {
+                                eventDestination?: {
+                                    /**
+                                     * @example {
+                                     *       "type": "EventDestination",
+                                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     * @example {
+                                     *       "type": "EventDestination",
+                                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     */
+                                    data?: null | {
+                                        /**
+                                         * @example EventDestination
+                                         * @example EventDestination
+                                         */
+                                        type: string;
+                                        /**
+                                         * Format: iri-reference
+                                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         */
+                                        id: string;
+                                    };
+                                };
+                            };
+                        }[];
+                        /** @description Related resources requested via the "include" query parameter. */
+                        readonly included?: components["schemas"]["EventDestination.jsonapi"][];
+                    };
+                    "application/json": components["schemas"]["Watch"][];
+                };
+            };
+            /** @description More than 100 property ids, or a filter value that is not an id. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Watch resource */
+        requestBody: {
+            content: {
+                "application/vnd.api+json": components["schemas"]["Watch.WatchCreateInput.jsonapi"];
+                "application/json": components["schemas"]["Watch.WatchCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Watch resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Watch.jsonapi"];
+                    "application/json": components["schemas"]["Watch"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The property, or the alert named by alertId, does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You already watch this property under this alert, or under none; the message names that watch. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    getWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch identifier
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Watch resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Watch.jsonapi"];
+                    "application/json": components["schemas"]["Watch"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch identifier
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated Watch resource */
+        requestBody: {
+            content: {
+                "application/vnd.api+json": components["schemas"]["Watch.WatchUpdateInput.jsonapi"];
+                "application/json": components["schemas"]["Watch.WatchUpdateInput.partial"];
+            };
+        };
+        responses: {
+            /** @description Watch resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Watch.jsonapi"];
+                    "application/json": components["schemas"]["Watch"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description You already watch this property under the alert named by alertId, both watches have notification rules, and they differ in whether they are enabled or in their destination: the message names the watch already there. Or the property was merged into another one during the update, and a retry succeeds. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    deleteWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch identifier
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Watch resource deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The property was merged into another one during the removal; a retry succeeds. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listWatchEvents: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+                /** @description Sort events by creation date. Accepts asc or desc. */
+                "order[createdAt]"?: "asc" | "desc";
+                /**
+                 * @description Only events created on or before this date.
+                 * @example 2026-01-31
+                 */
+                "createdAt[before]"?: string;
+                /**
+                 * @description Only events created strictly before this date.
+                 * @example 2026-01-31
+                 */
+                "createdAt[strictly_before]"?: string;
+                /**
+                 * @description Only events created on or after this date.
+                 * @example 2026-01-01
+                 */
+                "createdAt[after]"?: string;
+                /**
+                 * @description Only events created strictly after this date.
+                 * @example 2026-01-01
+                 */
+                "createdAt[strictly_after]"?: string;
+            };
+            header?: never;
+            path: {
+                /**
+                 * @description Watch id
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                watchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WatchEvent collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
+                        data?: {
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
+                            id: string;
+                            /**
+                             * @example WatchEvent
+                             * @example WatchEvent
+                             */
+                            type: string;
+                            attributes?: {
+                                /**
+                                 * Format: iri-reference
+                                 * @description The watch this event was told to.
+                                 * @example https://example.com/
+                                 * @example https://example.com/
+                                 */
+                                watch?: string;
+                                /**
+                                 * @description What happened to the property.
+                                 * @example PRICE_CHANGE
+                                 * @example PRICE_CHANGE
+                                 * @enum {string}
+                                 */
+                                eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+                                /**
+                                 * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did.
+                                 * @default PROPERTY
+                                 * @example PROPERTY
+                                 * @example PROPERTY
+                                 * @enum {string}
+                                 */
+                                scope: "PROPERTY" | "LISTING";
+                                /**
+                                 * Format: date-time
+                                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the watch is no longer active, when no delivery destination could be resolved, or when the destination cannot carry the event type.
+                                 * @example 2026-07-28T09:15:00+00:00
+                                 * @example 2026-07-28T09:15:00+00:00
+                                 */
+                                notifiedAt?: string | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                                /**
+                                 * Format: date-time
+                                 * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 */
+                                readonly createdAt?: string | null;
+                                /**
+                                 * Format: date-time
+                                 * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 */
+                                readonly updatedAt?: string | null;
+                            };
+                            relationships?: {
+                                property?: {
+                                    /**
+                                     * @example {
+                                     *       "type": "Property",
+                                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     * @example {
+                                     *       "type": "Property",
+                                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     */
+                                    data?: null | {
+                                        /**
+                                         * @example Property
+                                         * @example Property
+                                         */
+                                        type: string;
+                                        /**
+                                         * Format: iri-reference
+                                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         */
+                                        id: string;
+                                    };
+                                };
+                            };
+                        }[];
+                        /** @description Related resources requested via the "include" query parameter. */
+                        readonly included?: components["schemas"]["PropertySearchResult.jsonapi"][];
+                    };
+                    "application/json": components["schemas"]["WatchEvent"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWatchEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch id
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                watchId: string;
+                /**
+                 * @description Event id
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WatchEvent resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["WatchEvent.jsonapi"];
+                    "application/json": components["schemas"]["WatchEvent"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     alertEventWebhook: {
         parameters: {
             query?: never;
@@ -10314,7 +11587,8 @@ export interface operations {
                  *       "eventId": "01926b8a-7c1d-7f3a-9b2e-5a8f4d6c1e90",
                  *       "alert": {
                  *         "id": "01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05",
-                 *         "name": "Paris 2-bed under 2k"
+                 *         "name": "Paris 2-bed under 2k",
+                 *         "kind": "MARKET"
                  *       },
                  *       "listing": {
                  *         "id": "019dedb1-ff41-7e5a-bd16-6900cbd8c004"
@@ -10606,11 +11880,16 @@ export interface operations {
                     alert: {
                         /**
                          * Format: uuid
-                         * @description Id of the alert that matched.
+                         * @description Id of the alert that matched, or of the watch.
                          */
                         id: string;
-                        /** @description Name of the alert that matched. Null when the alert has no name. */
+                        /** @description Name of the alert that matched. Null when the alert has no name, and for a watch. */
                         name: string | null;
+                        /**
+                         * @description MARKET for an alert, WATCH for a watch of your watchlist.
+                         * @enum {string}
+                         */
+                        kind: "MARKET" | "WATCH";
                     };
                     listing: {
                         /**
@@ -10619,7 +11898,7 @@ export interface operations {
                          */
                         id: string;
                     };
-                    /** @description Full property representation: the body GET /properties/{id} returns for the property's own id, with fields that have no value present as null. Embedded so you can ingest the match without an extra (billed) API call. It reflects the freshest indexed state at delivery time, not a point-in-time snapshot of the event. */
+                    /** @description Full property representation: the body GET /properties/{id} returns for the property's own id, with fields that have no value present as null. Embedded so you can process the match without an extra (billed) API call. It reflects the property's state at delivery time, not a point-in-time snapshot of the event. */
                     data: {
                         [key: string]: unknown;
                     };
