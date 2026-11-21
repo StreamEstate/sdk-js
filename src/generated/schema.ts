@@ -136,7 +136,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an alert
-         * @description Delete an alert
+         * @description Deletes the alert and every watch of your watchlist filed under it, with their notification rules. A watch of the same property with no alert, or under another alert, is kept.
          */
         delete: operations["deleteAlert"];
         options?: never;
@@ -622,6 +622,98 @@ export interface paths {
          * @description Search closed real-estate transactions with optional filters (date, property type, price, location ids, and a GeoJSON polygon), cursor-paginated. A transaction reported by more than one source is returned once, with a matched block. Filters are sent in the request body rather than the query string so a large geoshape polygon is not constrained by URL length.
          */
         post: operations["searchTransactions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List your watchlist
+         * @description Your watches, newest first. Each carries the watched property's id, not the property itself: read the properties through the property endpoints.
+         */
+        get: operations["listWatchlist"];
+        put?: never;
+        /**
+         * Watch a property
+         * @description Adds a property to your watchlist. Without notificationConfig the watch only keeps the property in your list and is free; with it, each notification costs a credit, as an alert's does. Nothing is sent about the property's past: notifications start from the property as it is now. An unknown property returns 404; one you already watch under the same alert, or under none, returns 409 with the id of that watch; NEW_MATCH at PROPERTY scope returns 422.
+         */
+        post: operations["createWatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a watch
+         * @description One watch of your watchlist. A deleted watch, or one merged into another, returns 404.
+         */
+        get: operations["getWatch"];
+        /**
+         * Update a watch
+         * @description Changes the alert a watch is filed under, its notification configuration, its destination or whether it is enabled. Only the fields present in the body change; the property never does. Moving a watch where you already watch the property merges it into the watch already there, which is returned: that watch keeps its notification rules and takes the moved watch's rules for the event types it has none for and its destination can deliver; one with no rules takes the rules, destination and enabled value of a moved watch that has rules. Otherwise the watch already there keeps its own destination and enabled value, and those sent with the move are not applied to it. The watch returned keeps the prices it measures changes from, unless it takes a rule at a level, property or listing, it had none at, which restarts them from the current prices; the moved watch's are discarded. It returns 409 when both watches have rules and differ in whether they are enabled or in their destination.
+         */
+        put: operations["updateWatch"];
+        post?: never;
+        /**
+         * Remove a watch
+         * @description Removes the property from your watchlist and stops its notifications.
+         */
+        delete: operations["deleteWatch"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist/{watchId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the events of a watch
+         * @description The events a watch of your watchlist was told, newest first: one per change of the watched property that one of its notification rules admitted.
+         */
+        get: operations["listWatchEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist/{watchId}/events/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an event of a watch
+         * @description One notification-producing event of a watch of your watchlist.
+         */
+        get: operations["getWatchEvent"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3565,6 +3657,21 @@ export interface components {
             /** @description Sub-neighborhood-level division (e.g. IRIS in France) when known. */
             subNeighborhood?: components["schemas"]["AdministrativeDivisionReference"] | null;
         };
+        NotificationDestination: {
+            /**
+             * Format: iri-reference
+             * @description Existing event destination to link. Provide only one destination input.
+             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
+             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
+             */
+            eventDestination?: string | null;
+            /**
+             * @description Webhook URL; creates or reuses a webhook destination. Provide only one destination input.
+             * @example https://your-server.com/webhooks/alerts
+             * @example https://your-server.com/webhooks/alerts
+             */
+            webhookUrl?: string | null;
+        };
         OutdoorArea: {
             /**
              * @description Override for the outdoor unit. Present only when it diverges from area.unit; otherwise inherit the headline.
@@ -5547,6 +5654,435 @@ export interface components {
             /** @description Energy equipment (heating systems / carriers) attached to the canonical diagnostic's source listing. */
             energy?: components["schemas"]["UnitEnergy"] | null;
         };
+        /** @description A property of your watchlist, with the notifications you chose for it. */
+        Watch: {
+            /**
+             * @description Id of the watched property. After a merge, the id of the property it was merged into.
+             * @default
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             */
+            readonly propertyId: string;
+            /**
+             * @description Id of the alert this watch is filed under; absent when it is filed under none.
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             */
+            readonly alertId?: string | null;
+            /**
+             * @description Whether the watched property has left the market. The watch stays, and tells you of its return if you asked to be.
+             * @default false
+             * @example false
+             * @example false
+             */
+            readonly expired: boolean;
+            /**
+             * @description Whether the watch notifies. When a property you also watch is merged into this watch's property, a disabled watch with notification rules stays disabled and silent, including the rules it takes, until you enable it.
+             * @default true
+             * @example true
+             * @example true
+             */
+            readonly enabled: boolean;
+            /** @description Notification configuration; absent for a watch that only keeps the property in your list. */
+            readonly notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+            /**
+             * Format: iri-reference
+             * @description Event destination notifications are delivered to. Set it on create or update through notificationDestination.
+             * @example https://example.com/
+             * @example https://example.com/
+             */
+            readonly eventDestination?: string | null;
+            /**
+             * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+             * @example whsec_abc123...
+             * @example whsec_abc123...
+             */
+            readonly signingKey?: string | null;
+            /**
+             * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+             * @example b75b1473
+             * @example b75b1473
+             */
+            readonly signingKeyHint?: string | null;
+            /**
+             * Format: uuid
+             * @description Public unique identifier (UUID).
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            readonly id?: string;
+            /**
+             * Format: date-time
+             * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
+             * @example 2026-01-15T10:30:00+00:00
+             */
+            readonly createdAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Last update date.
+             * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
+             */
+            readonly updatedAt?: string | null;
+        };
+        /** @description A property of your watchlist, with the notifications you chose for it. */
+        "Watch.WatchCreateInput": {
+            /**
+             * Format: uuid
+             * @description Id of the property to watch. An id that a merge retired is accepted and the watch is made on the property it was merged into.
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+             */
+            propertyId: string;
+            /**
+             * Format: uuid
+             * @description Id of one of your alerts to file the watch under. Omit it to file the watch under no alert.
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             */
+            alertId?: string | null;
+            /**
+             * @description Whether the watch notifies. New watches are enabled.
+             * @example true
+             * @example true
+             */
+            enabled?: boolean;
+            /** @description Notification configuration, which selects the changes of this property you are notified of. Omit it to keep the property in your watchlist without notifications. NEW_MATCH is accepted only at LISTING scope, where it means a new listing publishes the property. */
+            notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+            /** @description Notification destination. Provide exactly one destination input. Omit it to use your default destination at delivery time; a watch with no notification configuration needs none. */
+            notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+        };
+        "Watch.WatchCreateInput.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id?: string;
+            /**
+             * @example Watch.WatchCreate
+             * @example Watch.WatchCreate
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: uuid
+                 * @description Id of the property to watch. An id that a merge retired is accepted and the watch is made on the property it was merged into.
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 */
+                propertyId: string;
+                /**
+                 * Format: uuid
+                 * @description Id of one of your alerts to file the watch under. Omit it to file the watch under no alert.
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 */
+                alertId?: string | null;
+                /**
+                 * @description Whether the watch notifies. New watches are enabled.
+                 * @example true
+                 * @example true
+                 */
+                enabled?: boolean;
+                /** @description Notification configuration, which selects the changes of this property you are notified of. Omit it to keep the property in your watchlist without notifications. NEW_MATCH is accepted only at LISTING scope, where it means a new listing publishes the property. */
+                notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                /** @description Notification destination. Provide exactly one destination input. Omit it to use your default destination at delivery time; a watch with no notification configuration needs none. */
+                notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+            };
+        };
+        "Watch.WatchUpdateInput.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example Watch.WatchUpdate
+             * @example Watch.WatchUpdate
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: uuid
+                 * @description Id of one of your alerts to file the watch under, or null to file it under none. Omit it to keep the current one. Moving a watch where you already watch this property merges the two into the one already there.
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 */
+                alertId?: string | null;
+                /**
+                 * @description Whether the watch notifies. Omit it to keep the current value. Enabling it again starts from the property as it is then, without telling what changed meanwhile.
+                 * @example true
+                 * @example true
+                 */
+                enabled?: boolean;
+                /** @description Notification configuration. Omit it to keep the current one, or send null to stop notifying and keep the property in your watchlist. Rules attached later start from the property as it is then. */
+                notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                /** @description Notification destination. Provide exactly one destination input. Omit it to keep the current destination, or send null to go back to your default. */
+                notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+            };
+        };
+        /** @description A property of your watchlist, with the notifications you chose for it. */
+        "Watch.WatchUpdateInput.partial": {
+            /**
+             * Format: uuid
+             * @description Id of one of your alerts to file the watch under, or null to file it under none. Omit it to keep the current one. Moving a watch where you already watch this property merges the two into the one already there.
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+             */
+            alertId?: string | null;
+            /**
+             * @description Whether the watch notifies. Omit it to keep the current value. Enabling it again starts from the property as it is then, without telling what changed meanwhile.
+             * @example true
+             * @example true
+             */
+            enabled?: boolean;
+            /** @description Notification configuration. Omit it to keep the current one, or send null to stop notifying and keep the property in your watchlist. Rules attached later start from the property as it is then. */
+            notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+            /** @description Notification destination. Provide exactly one destination input. Omit it to keep the current destination, or send null to go back to your default. */
+            notificationDestination?: components["schemas"]["NotificationDestination"] | null;
+        };
+        "Watch.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example Watch
+             * @example Watch
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * @description Id of the watched property. After a merge, the id of the property it was merged into.
+                 * @default
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                 */
+                readonly propertyId: string;
+                /**
+                 * @description Id of the alert this watch is filed under; absent when it is filed under none.
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                 */
+                readonly alertId?: string | null;
+                /**
+                 * @description Whether the watched property has left the market. The watch stays, and tells you of its return if you asked to be.
+                 * @default false
+                 * @example false
+                 * @example false
+                 */
+                readonly expired: boolean;
+                /**
+                 * @description Whether the watch notifies. When a property you also watch is merged into this watch's property, a disabled watch with notification rules stays disabled and silent, including the rules it takes, until you enable it.
+                 * @default true
+                 * @example true
+                 * @example true
+                 */
+                readonly enabled: boolean;
+                /** @description Notification configuration; absent for a watch that only keeps the property in your list. */
+                readonly notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                /**
+                 * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+                 * @example whsec_abc123...
+                 * @example whsec_abc123...
+                 */
+                readonly signingKey?: string | null;
+                /**
+                 * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                 * @example b75b1473
+                 * @example b75b1473
+                 */
+                readonly signingKeyHint?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Creation date.
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                readonly createdAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
+                 * @example 2026-05-20T14:45:00+00:00
+                 */
+                readonly updatedAt?: string | null;
+            };
+            relationships?: {
+                eventDestination?: {
+                    /**
+                     * @example {
+                     *       "type": "EventDestination",
+                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     * @example {
+                     *       "type": "EventDestination",
+                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     */
+                    data?: null | {
+                        /**
+                         * @example EventDestination
+                         * @example EventDestination
+                         */
+                        type: string;
+                        /**
+                         * Format: iri-reference
+                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    };
+                };
+            };
+        };
+        /** @description An event of a watch of your watchlist: one change of the watched property that one of its notification rules admitted. Data is retained for 12 months, after which it is permanently deleted. */
+        WatchEvent: {
+            /**
+             * Format: iri-reference
+             * @description The watch this event was told to.
+             * @example https://example.com/
+             * @example https://example.com/
+             */
+            watch?: string;
+            /**
+             * Format: iri-reference
+             * @description The watched property.
+             * @example https://example.com/
+             * @example https://example.com/
+             */
+            property?: string;
+            /**
+             * @description What happened to the property.
+             * @example PRICE_CHANGE
+             * @example PRICE_CHANGE
+             * @enum {string}
+             */
+            eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+            /**
+             * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did.
+             * @default PROPERTY
+             * @example PROPERTY
+             * @example PROPERTY
+             * @enum {string}
+             */
+            scope: "PROPERTY" | "LISTING";
+            /**
+             * Format: date-time
+             * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the watch is no longer active, when no delivery destination could be resolved, or when the destination cannot carry the event type.
+             * @example 2026-07-28T09:15:00+00:00
+             * @example 2026-07-28T09:15:00+00:00
+             */
+            notifiedAt?: string | null;
+            /**
+             * Format: uuid
+             * @description Public unique identifier (UUID).
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            readonly id?: string;
+            /**
+             * Format: date-time
+             * @description Creation date.
+             * @example 2026-01-15T10:30:00+00:00
+             * @example 2026-01-15T10:30:00+00:00
+             */
+            readonly createdAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Last update date.
+             * @example 2026-05-20T14:45:00+00:00
+             * @example 2026-05-20T14:45:00+00:00
+             */
+            readonly updatedAt?: string | null;
+        };
+        /** @description Data is retained for 12 months, after which it is permanently deleted. */
+        "WatchEvent.jsonapi": {
+            /**
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+             */
+            id: string;
+            /**
+             * @example WatchEvent
+             * @example WatchEvent
+             */
+            type: string;
+            attributes?: {
+                /**
+                 * Format: iri-reference
+                 * @description The watch this event was told to.
+                 * @example https://example.com/
+                 * @example https://example.com/
+                 */
+                watch?: string;
+                /**
+                 * @description What happened to the property.
+                 * @example PRICE_CHANGE
+                 * @example PRICE_CHANGE
+                 * @enum {string}
+                 */
+                eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+                /**
+                 * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did.
+                 * @default PROPERTY
+                 * @example PROPERTY
+                 * @example PROPERTY
+                 * @enum {string}
+                 */
+                scope: "PROPERTY" | "LISTING";
+                /**
+                 * Format: date-time
+                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the watch is no longer active, when no delivery destination could be resolved, or when the destination cannot carry the event type.
+                 * @example 2026-07-28T09:15:00+00:00
+                 * @example 2026-07-28T09:15:00+00:00
+                 */
+                notifiedAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Creation date.
+                 * @example 2026-01-15T10:30:00+00:00
+                 * @example 2026-01-15T10:30:00+00:00
+                 */
+                readonly createdAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Last update date.
+                 * @example 2026-05-20T14:45:00+00:00
+                 * @example 2026-05-20T14:45:00+00:00
+                 */
+                readonly updatedAt?: string | null;
+            };
+            relationships?: {
+                property?: {
+                    /**
+                     * @example {
+                     *       "type": "Property",
+                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     * @example {
+                     *       "type": "Property",
+                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                     *     }
+                     */
+                    data?: null | {
+                        /**
+                         * @example Property
+                         * @example Property
+                         */
+                        type: string;
+                        /**
+                         * Format: iri-reference
+                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                         */
+                        id: string;
+                    };
+                };
+            };
+        };
         AndNode: {
             /** @description Child nodes — all must match. */
             and?: components["schemas"]["CriteriaNode"][];
@@ -6774,21 +7310,6 @@ export interface components {
             notificationDestination?: components["schemas"]["NotificationDestination"] | null;
             /** @description Notification configuration, which selects the event types you receive. On create, omit it and the alert never notifies; on update, omit it to keep the current configuration, or send null to stop notifying. */
             notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
-        };
-        NotificationDestination: {
-            /**
-             * Format: iri-reference
-             * @description Existing event destination to link. Provide only one destination input.
-             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
-             * @example /account/event-destinations/01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05
-             */
-            eventDestination?: string | null;
-            /**
-             * @description Webhook URL; creates or reuses a webhook destination. Provide only one destination input.
-             * @example https://your-server.com/webhooks/alerts
-             * @example https://your-server.com/webhooks/alerts
-             */
-            webhookUrl?: string | null;
         };
         "AlertForecast.AlertForecastInput": {
             criteria?: components["schemas"]["Alert.CriteriaNode"] | null;
@@ -10418,6 +10939,631 @@ export interface operations {
             };
         };
     };
+    listWatchlist: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+                /** @description The number of items per page */
+                size?: number;
+                /** @description Only the watches filed under this alert. */
+                alertId?: string;
+                /** @description Only the watches of these properties, at most 100. */
+                "propertyId[]"?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Watch collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
+                        data?: {
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
+                            id: string;
+                            /**
+                             * @example Watch
+                             * @example Watch
+                             */
+                            type: string;
+                            attributes?: {
+                                /**
+                                 * @description Id of the watched property. After a merge, the id of the property it was merged into.
+                                 * @default
+                                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                                 * @example 0198f5c4-3b0a-7c1e-9d2f-4a5b6c7d8e9f
+                                 */
+                                readonly propertyId: string;
+                                /**
+                                 * @description Id of the alert this watch is filed under; absent when it is filed under none.
+                                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                                 * @example 0198f5c4-1a2b-7c3d-8e4f-5a6b7c8d9e0f
+                                 */
+                                readonly alertId?: string | null;
+                                /**
+                                 * @description Whether the watched property has left the market. The watch stays, and tells you of its return if you asked to be.
+                                 * @default false
+                                 * @example false
+                                 * @example false
+                                 */
+                                readonly expired: boolean;
+                                /**
+                                 * @description Whether the watch notifies. When a property you also watch is merged into this watch's property, a disabled watch with notification rules stays disabled and silent, including the rules it takes, until you enable it.
+                                 * @default true
+                                 * @example true
+                                 * @example true
+                                 */
+                                readonly enabled: boolean;
+                                /** @description Notification configuration; absent for a watch that only keeps the property in your list. */
+                                readonly notificationConfig?: components["schemas"]["AlertNotificationConfig"] | null;
+                                /**
+                                 * @description Webhook signing key. Present only when this request created the first webhook destination of your account; store it securely, it cannot be retrieved again
+                                 * @example whsec_abc123...
+                                 * @example whsec_abc123...
+                                 */
+                                readonly signingKey?: string | null;
+                                /**
+                                 * @description A short fingerprint of the signing key returned above (the first 8 hex characters of its sha256). Keep it: it is what identifies your active key later, and your dashboard shows the same value.
+                                 * @example b75b1473
+                                 * @example b75b1473
+                                 */
+                                readonly signingKeyHint?: string | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                                /**
+                                 * Format: date-time
+                                 * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 */
+                                readonly createdAt?: string | null;
+                                /**
+                                 * Format: date-time
+                                 * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 */
+                                readonly updatedAt?: string | null;
+                            };
+                            relationships?: {
+                                eventDestination?: {
+                                    /**
+                                     * @example {
+                                     *       "type": "EventDestination",
+                                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     * @example {
+                                     *       "type": "EventDestination",
+                                     *       "id": "/eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     */
+                                    data?: null | {
+                                        /**
+                                         * @example EventDestination
+                                         * @example EventDestination
+                                         */
+                                        type: string;
+                                        /**
+                                         * Format: iri-reference
+                                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         * @example /eventDestinations/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         */
+                                        id: string;
+                                    };
+                                };
+                            };
+                        }[];
+                        /** @description Related resources requested via the "include" query parameter. */
+                        readonly included?: components["schemas"]["EventDestination.jsonapi"][];
+                    };
+                    "application/json": components["schemas"]["Watch"][];
+                };
+            };
+            /** @description More than 100 property ids, or a filter value that is not an id. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The new Watch resource */
+        requestBody: {
+            content: {
+                "application/vnd.api+json": components["schemas"]["Watch.WatchCreateInput.jsonapi"];
+                "application/json": components["schemas"]["Watch.WatchCreateInput"];
+            };
+        };
+        responses: {
+            /** @description Watch resource created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Watch.jsonapi"];
+                    "application/json": components["schemas"]["Watch"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The property, or the alert named by alertId, does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You already watch this property under this alert, or under none; the message names that watch. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    getWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch identifier
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Watch resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Watch.jsonapi"];
+                    "application/json": components["schemas"]["Watch"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch identifier
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The updated Watch resource */
+        requestBody: {
+            content: {
+                "application/vnd.api+json": components["schemas"]["Watch.WatchUpdateInput.jsonapi"];
+                "application/json": components["schemas"]["Watch.WatchUpdateInput.partial"];
+            };
+        };
+        responses: {
+            /** @description Watch resource updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Watch.jsonapi"];
+                    "application/json": components["schemas"]["Watch"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description You already watch this property under the alert named by alertId, both watches have notification rules, and they differ in whether they are enabled or in their destination: the message names the watch already there. Or the property was merged into another one during the update, and a retry succeeds. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An error occurred */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ConstraintViolation.jsonapi"];
+                    "application/problem+json": components["schemas"]["ConstraintViolation"];
+                    "application/json": components["schemas"]["ConstraintViolation"];
+                };
+            };
+        };
+    };
+    deleteWatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch identifier
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Watch resource deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The property was merged into another one during the removal; a retry succeeds. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listWatchEvents: {
+        parameters: {
+            query?: {
+                /** @description The collection page number */
+                page?: number;
+                /** @description Sort events by creation date. Accepts asc or desc. */
+                "order[createdAt]"?: "asc" | "desc";
+                /**
+                 * @description Only events created on or before this date.
+                 * @example 2026-01-31
+                 */
+                "createdAt[before]"?: string;
+                /**
+                 * @description Only events created strictly before this date.
+                 * @example 2026-01-31
+                 */
+                "createdAt[strictly_before]"?: string;
+                /**
+                 * @description Only events created on or after this date.
+                 * @example 2026-01-01
+                 */
+                "createdAt[after]"?: string;
+                /**
+                 * @description Only events created strictly after this date.
+                 * @example 2026-01-01
+                 */
+                "createdAt[strictly_after]"?: string;
+            };
+            header?: never;
+            path: {
+                /**
+                 * @description Watch id
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                watchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WatchEvent collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["JsonApiCollectionBaseSchema"] & {
+                        data?: {
+                            /**
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                             */
+                            id: string;
+                            /**
+                             * @example WatchEvent
+                             * @example WatchEvent
+                             */
+                            type: string;
+                            attributes?: {
+                                /**
+                                 * Format: iri-reference
+                                 * @description The watch this event was told to.
+                                 * @example https://example.com/
+                                 * @example https://example.com/
+                                 */
+                                watch?: string;
+                                /**
+                                 * @description What happened to the property.
+                                 * @example PRICE_CHANGE
+                                 * @example PRICE_CHANGE
+                                 * @enum {string}
+                                 */
+                                eventType?: "NEW_MATCH" | "PRICE_CHANGE" | "OTHER_CHANGE" | "EXPIRED" | "REACTIVATED" | "MERGED";
+                                /**
+                                 * @description What this event is about, matching the scope of the rule that produced it. PROPERTY: the property did something. LISTING: one advert of it did.
+                                 * @default PROPERTY
+                                 * @example PROPERTY
+                                 * @example PROPERTY
+                                 * @enum {string}
+                                 */
+                                scope: "PROPERTY" | "LISTING";
+                                /**
+                                 * Format: date-time
+                                 * @description Date this event was processed for delivery, null while it is still queued. A processed event has no notification when the watch is no longer active, when no delivery destination could be resolved, or when the destination cannot carry the event type.
+                                 * @example 2026-07-28T09:15:00+00:00
+                                 * @example 2026-07-28T09:15:00+00:00
+                                 */
+                                notifiedAt?: string | null;
+                                /**
+                                 * Format: uuid
+                                 * @description Public unique identifier (UUID).
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                 */
+                                readonly _id?: string;
+                                /**
+                                 * Format: date-time
+                                 * @description Creation date.
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 * @example 2026-01-15T10:30:00+00:00
+                                 */
+                                readonly createdAt?: string | null;
+                                /**
+                                 * Format: date-time
+                                 * @description Last update date.
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 * @example 2026-05-20T14:45:00+00:00
+                                 */
+                                readonly updatedAt?: string | null;
+                            };
+                            relationships?: {
+                                property?: {
+                                    /**
+                                     * @example {
+                                     *       "type": "Property",
+                                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     * @example {
+                                     *       "type": "Property",
+                                     *       "id": "/propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                                     *     }
+                                     */
+                                    data?: null | {
+                                        /**
+                                         * @example Property
+                                         * @example Property
+                                         */
+                                        type: string;
+                                        /**
+                                         * Format: iri-reference
+                                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         * @example /propertys/3fa85f64-5717-4562-b3fc-2c963f66afa6
+                                         */
+                                        id: string;
+                                    };
+                                };
+                            };
+                        }[];
+                        /** @description Related resources requested via the "include" query parameter. */
+                        readonly included?: components["schemas"]["PropertySearchResult.jsonapi"][];
+                    };
+                    "application/json": components["schemas"]["WatchEvent"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWatchEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Watch id
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                watchId: string;
+                /**
+                 * @description Event id
+                 * @example 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                 */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WatchEvent resource */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["WatchEvent.jsonapi"];
+                    "application/json": components["schemas"]["WatchEvent"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["Error.jsonapi"];
+                    "application/problem+json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     alertEventWebhook: {
         parameters: {
             query?: never;
@@ -10441,7 +11587,8 @@ export interface operations {
                  *       "eventId": "01926b8a-7c1d-7f3a-9b2e-5a8f4d6c1e90",
                  *       "alert": {
                  *         "id": "01926b8a-5d2c-7b1e-8a4f-9c3d2e1b7a05",
-                 *         "name": "Paris 2-bed under 2k"
+                 *         "name": "Paris 2-bed under 2k",
+                 *         "kind": "MARKET"
                  *       },
                  *       "listing": {
                  *         "id": "019dedb1-ff41-7e5a-bd16-6900cbd8c004"
@@ -10733,11 +11880,16 @@ export interface operations {
                     alert: {
                         /**
                          * Format: uuid
-                         * @description Id of the alert that matched.
+                         * @description Id of the alert that matched, or of the watch.
                          */
                         id: string;
-                        /** @description Name of the alert that matched. Null when the alert has no name. */
+                        /** @description Name of the alert that matched. Null when the alert has no name, and for a watch. */
                         name: string | null;
+                        /**
+                         * @description MARKET for an alert, WATCH for a watch of your watchlist.
+                         * @enum {string}
+                         */
+                        kind: "MARKET" | "WATCH";
                     };
                     listing: {
                         /**
